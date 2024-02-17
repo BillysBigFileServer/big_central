@@ -1,0 +1,15 @@
+<h1>Hello!</h1>
+<.form for={@form} phx-change="validate" phx-submit="submit">
+
+  <div class={"outline outline-offset-2 #{@button_colors.email}"}>
+    <.input type="email" field={@form[:email]}  />
+  </div>
+  <p class="text-red-500"><%= @user_info_texts.email %></p>
+
+  <div class={"outline outline-offset-2 #{@button_colors.password}"}>
+    <.input type = "password" field={@form[:password]} />
+  </div>
+  <p class="text-red-500"><%= @user_info_texts.password%></p>
+
+  <.button>Submit</.button>
+</.form>
