@@ -29,11 +29,18 @@ defmodule BigCentralWeb.UserLive.Signup do
     socket =
       clear_flash(socket)
 
+    {email_valid, email_err, :email} = Validation.validate(email, :email)
+    {password_valid, password_err, :password} = Validation.validate(password, :password)
+
     socket =
-      with {:ok, _, _} <- Validation.validate(email, :email),
-           {:ok, _, _} <- Validation.validate(password, :password) do
-        socket |> put_flash(:info, "Signed up successfully!")
+      with {:ok, _, _} <- {email_valid, email_err, :email},
+           {:ok, _, _} <- {password_valid, password_err, :password},
+           {:ok, _} <- Users.create_user(%{email: email, password: password}) do
+        socket |> put_flash(:info, "Signed up successfully!") |> redirect(to: "/tokens")
       else
+        {:error, _, :database} ->
+          socket |> put_flash(:error, "Internal server error")
+
         {:error, :is_empty, :email} ->
           socket |> put_flash(:error, "Please specify an email")
 
@@ -49,6 +56,24 @@ defmodule BigCentralWeb.UserLive.Signup do
 
         {:error, _, :password} ->
           socket |> put_flash(:error, "Invalid password")
+
+        {:error, %Ecto.Changeset{errors: errors}} ->
+          errors =
+            dbg(errors)
+            |> Stream.map(fn err ->
+              case err do
+                {:email, {_, [constraint: :unique, constraint_name: _]}} ->
+                  "Email is already taken"
+
+                _ ->
+                  dbg(err)
+                  "Internal server error"
+              end
+            end)
+            # TODO figure out how to combine them with newlines
+            |> Enum.join("\n")
+
+          socket |> put_flash(:error, errors)
       end
 
     {:noreply, socket}
@@ -70,11 +95,6 @@ defmodule BigCentralWeb.UserLive.Signup do
 
     {:noreply,
      socket |> assign(button_colors: button_colors) |> assign(user_info_texts: user_info_texts)}
-  end
-
-  @impl true
-  def handle_event("submit", %{"user" => %{"email" => email, "password" => password}}, socket) do
-    {:noreply, socket |> put_flash(:info, "Signed up!")}
   end
 
   defp get_user_info({:ok, _input, _}) do

@@ -14,5 +14,6 @@ defmodule BigCentral.Users.User do
     user
     |> cast(attrs, [:email, :password])
     |> validate_required([:email, :password])
+    |> unique_constraint(:email)
   end
 end
