@@ -37,3 +37,6 @@ big_central-*.tar
 npm-debug.log
 /assets/node_modules/
 
+logfile
+
+/priv/native/

@@ -1,4 +1,5 @@
 defmodule BigCentralWeb.UserLive.Signup do
+  alias BigCentral.Users.Token
   use BigCentralWeb, :live_view
 
   alias BigCentral.Users
@@ -36,7 +37,9 @@ defmodule BigCentralWeb.UserLive.Signup do
       with {:ok, _, _} <- {email_valid, email_err, :email},
            {:ok, _, _} <- {password_valid, password_err, :password},
            {:ok, _} <- Users.create_user(%{email: email, password: password}) do
-        socket |> put_flash(:info, "Signed up successfully!") |> redirect(to: "/tokens")
+        t = Token.generate_ultimate()
+        socket |> put_flash(:info, t)
+        # |> redirect(to: "/tokens")
       else
         {:error, _, :database} ->
           socket |> put_flash(:error, "Internal server error")

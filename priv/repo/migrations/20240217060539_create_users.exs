@@ -3,8 +3,8 @@ defmodule BigCentral.Repo.Migrations.CreateUsers do
 
   def change do
     create table(:users) do
-      add :email, :string
-      add :password, :string
+      add :email, :string, null: false
+      add :password, :string, null: false
 
       timestamps(type: :utc_datetime)
     end
