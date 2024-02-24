@@ -1,0 +1,4 @@
+<h1>Tokens:</h1>
+<%= for token <- @tokens do %>
+  <h2><%= token.email %>: <%= token.token %></h2>
+<% end %>

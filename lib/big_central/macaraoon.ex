@@ -3,4 +3,5 @@ defmodule Macaroon do
 
   # When your NIF is loaded, it will override this function.
   def generate_macaroon(_location, _key, _identifier), do: :erlang.nif_error(:nif_not_loaded)
+  def add_first_party_caveat(_macaroon, _predicate), do: :erlang.nif_error(:nif_not_loaded)
 end

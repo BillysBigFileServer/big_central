@@ -5,7 +5,7 @@ defmodule BigCentral.Repo.Migrations.CreateTokens do
     create table(:tokens) do
       add :user_id, :integer, null: false
       add :token, :string, null: false
-      add :expires, :utc_datetime, null: true
+      add :valid, :boolean, null: false, default: true
 
       timestamps(type: :utc_datetime)
     end

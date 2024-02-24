@@ -1,21 +1,17 @@
 defmodule BigCentralWeb.UserSessionController do
   use BigCentralWeb, :controller
 
+  alias BigCentral.Users.Token
   alias BigCentral.Accounts
   alias BigCentralWeb.UserAuth
 
-  def create(conn, %{"_action" => "registered"} = params) do
-    create(conn, params, "Account created successfully!")
-  end
+  def create(conn, %{"user" => %{"email" => email, "password" => _password}} = params) do
+    {:ok, t} = Token.generate_ultimate(email)
 
-  def create(conn, %{"_action" => "password_updated"} = params) do
     conn
-    |> put_session(:user_return_to, ~p"/users/settings")
-    |> create(params, "Password updated successfully!")
-  end
-
-  def create(conn, params) do
-    create(conn, params, "Welcome back!")
+    |> put_session(:token, t)
+    |> put_flash(:info, "Registered successfully")
+    |> redirect(to: ~p"/tokens")
   end
 
   defp create(conn, %{"user" => user_params}, info) do

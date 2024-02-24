@@ -22,7 +22,9 @@ defmodule BigCentralWeb.UserLive.Signup do
          email: "",
          password: ""
        }
-     )}
+     )
+     |> assign(changeset: Users.change_user(%User{}))
+     |> assign(trigger_submit: false)}
   end
 
   @impl true
@@ -36,9 +38,14 @@ defmodule BigCentralWeb.UserLive.Signup do
     socket =
       with {:ok, _, _} <- {email_valid, email_err, :email},
            {:ok, _, _} <- {password_valid, password_err, :password},
-           {:ok, _} <- Users.create_user(%{email: email, password: password}) do
-        t = Token.generate_ultimate()
-        socket |> put_flash(:info, t)
+           {:ok, user} <- Users.create_user(%{email: email, password: password}) do
+        changeset = Users.change_user(user)
+
+        socket
+        |> put_flash(:info, "Signed up successfully")
+        |> assign(:changeset, changeset)
+        |> assign(:trigger_submit, true)
+
         # |> redirect(to: "/tokens")
       else
         {:error, _, :database} ->
