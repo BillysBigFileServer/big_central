@@ -45,6 +45,12 @@ defmodule BigCentralWeb.Router do
     end
   end
 
+  scope "/api", BigCentralWeb do
+    pipe_through :api
+
+    get "/dl_token", ApiController, :show
+  end
+
   ## Authentication routes
 
   scope "/", BigCentralWeb do
@@ -54,6 +60,7 @@ defmodule BigCentralWeb.Router do
       on_mount: [{BigCentralWeb.UserAuth, :redirect_if_user_is_authenticated}] do
       live "/signup", UserLive.Signup
       live "/tokens", UserLive.Tokens
+      live "/auth_app_success", UserLive.AuthAppSuccess
     end
 
     post "/users/signup", UserSessionController, :create

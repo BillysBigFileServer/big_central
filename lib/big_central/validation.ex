@@ -23,6 +23,10 @@ defmodule BigCentral.Users.Validation do
     {:ok, password}
   end
 
+  defp check_valid(dl_token, :dl_token) do
+    {:ok, dl_token}
+  end
+
   defp check_len(email, :email) do
     IO.puts(String.length(email))
 
@@ -39,6 +43,13 @@ defmodule BigCentral.Users.Validation do
       0 -> {:error, :is_empty}
       x when x in 1..256 -> {:ok, password}
       _ -> {:error, :too_long}
+    end
+  end
+
+  defp check_len(dl_token, :dl_token) do
+    case String.length(dl_token) do
+      128 -> {:ok, dl_token}
+      _ -> {:error, :invalid_len}
     end
   end
 end

@@ -1,5 +1,4 @@
 defmodule BigCentralWeb.UserLive.Signup do
-  alias BigCentral.Users.Token
   use BigCentralWeb, :live_view
 
   alias BigCentral.Users
@@ -7,7 +6,7 @@ defmodule BigCentralWeb.UserLive.Signup do
   alias BigCentral.Users.Validation
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     {:ok,
      socket
      |> assign(form: to_form(Users.change_user(%User{})))
@@ -23,7 +22,7 @@ defmodule BigCentralWeb.UserLive.Signup do
          password: ""
        }
      )
-     |> assign(changeset: Users.change_user(%User{}))
+     |> assign(dl_token: params["dl_token"])
      |> assign(trigger_submit: false)}
   end
 
@@ -32,21 +31,21 @@ defmodule BigCentralWeb.UserLive.Signup do
     socket =
       clear_flash(socket)
 
-    {email_valid, email_err, :email} = Validation.validate(email, :email)
-    {password_valid, password_err, :password} = Validation.validate(password, :password)
+    dl_token = socket.assigns.dl_token
+
+    dl_token_valid = fn ->
+      {valid, _, _} = Validation.validate(dl_token, :dl_token)
+      valid == :ok
+    end
 
     socket =
-      with {:ok, _, _} <- {email_valid, email_err, :email},
-           {:ok, _, _} <- {password_valid, password_err, :password},
-           {:ok, user} <- Users.create_user(%{email: email, password: password}) do
-        changeset = Users.change_user(user)
-
+      with {:ok, _, _} <- Validation.validate(email, :email),
+           {:ok, _, _} <- Validation.validate(password, :password),
+           {true, :dl_token} <- {dl_token == nil || dl_token_valid.(), :dl_token},
+           {:ok, _} <- Users.create_user(%{email: email, password: password}) do
         socket
         |> put_flash(:info, "Signed up successfully")
-        |> assign(:changeset, changeset)
-        |> assign(:trigger_submit, true)
-
-        # |> redirect(to: "/tokens")
+        |> assign(trigger_submit: true)
       else
         {:error, _, :database} ->
           socket |> put_flash(:error, "Internal server error")
@@ -66,6 +65,9 @@ defmodule BigCentralWeb.UserLive.Signup do
 
         {:error, _, :password} ->
           socket |> put_flash(:error, "Invalid password")
+
+        {false, :dl_token} ->
+          socket |> put_flash(:error, "Invalid download token")
 
         {:error, %Ecto.Changeset{errors: errors}} ->
           errors =

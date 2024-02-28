@@ -6,7 +6,7 @@ defmodule BigCentral.Tokens do
   import Ecto.Query, warn: false
   alias BigCentral.Repo
 
-  alias BigCentral.Users.Token
+  alias BigCentral.Token
 
   def create_token(attrs \\ %{}) do
     %Token{}

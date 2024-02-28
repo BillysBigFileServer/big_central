@@ -1,5 +1,5 @@
 <h1>Hello!</h1>
-<.form for={@form} for={@changeset} as={:user} phx-change="validate" phx-submit="submit" action="/users/signup" phx-trigger-action={@trigger_submit}>
+<.form for={@form} as={:user} phx-change="validate" phx-submit="submit" action="/users/signup" phx-trigger-action={@trigger_submit}>
 
   <div class={"outline outline-offset-2 #{@button_colors.email}"}>
     <.input type="email" field={@form[:email]}  />
@@ -9,6 +9,9 @@
   <div class={"outline outline-offset-2 #{@button_colors.password}"}>
     <.input type = "password" field={@form[:password]} />
   </div>
+
+  <.input type="hidden" field={@form[:dl_token]} value={@dl_token} />
+
   <p class="text-red-500"><%= @user_info_texts.password%></p>
 
   <.button>Submit</.button>
