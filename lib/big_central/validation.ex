@@ -27,6 +27,19 @@ defmodule BigCentral.Users.Validation do
     {:ok, dl_token}
   end
 
+  defp check_valid(nil, :token) do
+    {:ok, nil}
+  end
+
+  defp check_valid(token, :token) do
+    key = List.duplicate(1, 32)
+
+    case Macaroon.verify_macaroon(token.token, key, []) do
+      {:ok} -> {:ok, token}
+      {:error, err} -> {:error, err}
+    end
+  end
+
   defp check_len(email, :email) do
     IO.puts(String.length(email))
 
@@ -51,5 +64,9 @@ defmodule BigCentral.Users.Validation do
       128 -> {:ok, dl_token}
       _ -> {:error, :invalid_len}
     end
+  end
+
+  defp check_len(token, :token) do
+    {:ok, token}
   end
 end

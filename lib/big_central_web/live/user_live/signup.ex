@@ -4,9 +4,19 @@ defmodule BigCentralWeb.UserLive.Signup do
   alias BigCentral.Users
   alias BigCentral.Users.User
   alias BigCentral.Users.Validation
+  alias BigCentral.Token
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
+    token = session["token"]
+    email = session["email"]
+
+    socket =
+      case Token.verify(token, %{email: email}) do
+        {:ok, token} -> socket |> assign(token: token) |> assign(email: email)
+        {:error, error} -> socket |> put_flash(:error, error) |> redirect(to: ~p"/users/logout")
+      end
+
     {:ok,
      socket
      |> assign(form: to_form(Users.change_user(%User{})))

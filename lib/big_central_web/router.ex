@@ -57,12 +57,14 @@ defmodule BigCentralWeb.Router do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
     live_session :redirect_if_user_is_authenticated,
+      layout: {BigCentralWeb.UserLive.Layouts, :app},
       on_mount: [{BigCentralWeb.UserAuth, :redirect_if_user_is_authenticated}] do
       live "/signup", UserLive.Signup
       live "/tokens", UserLive.Tokens
       live "/auth_app_success", UserLive.AuthAppSuccess
     end
 
+    get "/users/logout", UserSessionController, :delete
     post "/users/signup", UserSessionController, :create
     # post "/users/log_in", UserSessionController, :create
   end

@@ -32,6 +32,24 @@ defmodule BigCentral.Token do
     Tokens.create_token(%{token: m, user_id: user.id})
   end
 
+  def verify(nil, %{email: nil}) do
+    {:ok, nil}
+  end
+
+  def verify(_token, %{email: nil}) do
+    {:error, :nil_email}
+  end
+
+  def verify(token, %{email: email}) do
+    key = List.duplicate(1, 32)
+    caveats = ["email = " <> email]
+
+    case Macaroon.verify_macaroon(token.token, key, caveats) do
+      {:ok, {}} -> {:ok, token}
+      {:error, error} -> {:error, error}
+    end
+  end
+
   @doc false
   def changeset(tokens, attrs) do
     tokens
