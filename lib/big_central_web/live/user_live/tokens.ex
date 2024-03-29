@@ -4,9 +4,10 @@ defmodule BigCentralWeb.UserLive.Tokens do
   use BigCentralWeb, :live_view
 
   @impl true
-  def mount(_params, %{"token" => token}, socket) do
+  def mount(_params, %{"token" => token, "email" => email}, socket) do
     tokens = get_tokens(token)
-    {:ok, socket |> assign(%{tokens: tokens})}
+
+    {:ok, socket |> assign(%{tokens: tokens}) |> assign(%{token: token, email: email})}
   end
 
   defp get_tokens(token) do

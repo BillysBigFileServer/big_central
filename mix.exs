@@ -59,7 +59,9 @@ defmodule BigCentral.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
-      {:rustler, "~> 0.31.0"}
+      {:rustler, "~> 0.31.0"},
+      {:protobuf, "~> 0.12.0"},
+      {:google_protos, "~> 0.1"}
     ]
   end
 

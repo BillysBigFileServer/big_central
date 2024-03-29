@@ -32,12 +32,8 @@ defmodule BigCentral.Users.Validation do
   end
 
   defp check_valid(token, :token) do
-    key = List.duplicate(1, 32)
-
-    case Macaroon.verify_macaroon(token.token, key, []) do
-      {:ok} -> {:ok, token}
-      {:error, err} -> {:error, err}
-    end
+    # FIXME
+    {:ok, token}
   end
 
   defp check_len(email, :email) do

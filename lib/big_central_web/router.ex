@@ -62,6 +62,7 @@ defmodule BigCentralWeb.Router do
       live "/signup", UserLive.Signup
       live "/tokens", UserLive.Tokens
       live "/auth_app_success", UserLive.AuthAppSuccess
+      live "/files", FilesLive.Index
     end
 
     get "/users/logout", UserSessionController, :delete

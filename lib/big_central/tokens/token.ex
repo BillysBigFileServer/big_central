@@ -20,40 +20,32 @@ defmodule BigCentral.Token do
       {:err, :user_not_found}
     end
 
-    # FIXME: Obviously insecure
-    key = List.duplicate(1, 32)
-    current_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond) |> Integer.to_string()
-    identifier = email <> "-" <> current_time
+    email_fact = [{"email", "string", [email]}]
 
-    m =
-      Macaroon.generate_macaroon(nil, key, identifier)
-      |> Macaroon.add_first_party_caveat("email = " <> email)
+    rights_fact = [
+      {"rights", "set", ["read", "write", "query"]}
+    ]
 
-    Tokens.create_token(%{token: m, user_id: user.id})
+    t =
+      Application.fetch_env!(:big_central, :token_private_key)
+      |> Biscuit.generate(email_fact ++ rights_fact)
+
+    Tokens.create_token(%{token: t, user_id: user.id, valid: true})
   end
 
   def verify(nil, %{email: nil}) do
     {:ok, nil}
   end
 
-  def verify(_token, %{email: nil}) do
-    {:error, :nil_email}
-  end
-
   def verify(token, %{email: email}) do
-    key = List.duplicate(1, 32)
-    caveats = ["email = " <> email]
-
-    case Macaroon.verify_macaroon(token.token, key, caveats) do
-      {:ok, {}} -> {:ok, token}
-      {:error, error} -> {:error, error}
-    end
+    # FIXME
+    {:ok, token}
   end
 
   @doc false
   def changeset(tokens, attrs) do
     tokens
     |> cast(attrs, [:user_id, :token, :valid])
-    |> validate_required([:user_id, :token])
+    |> validate_required([:user_id, :token, :valid])
   end
 end

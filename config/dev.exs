@@ -62,6 +62,9 @@ config :big_central, BigCentralWeb.Endpoint,
     ]
   ]
 
+config :big_central,
+  token_private_key: "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+
 # Enable dev routes for dashboard and mailbox
 config :big_central, dev_routes: true
 

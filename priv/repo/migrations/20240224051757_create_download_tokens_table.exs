@@ -3,7 +3,7 @@ defmodule BigCentral.Repo.Migrations.CreateDownloadTokensTable do
 
   def change do
     create table(:dl_tokens) do
-      add :token, :string, null: false
+      add :token, :text, null: false
       add :dl_token, :string, null: false
       add :expires, :utc_datetime, null: false
     end

@@ -14,6 +14,7 @@ defmodule BigCentralWeb.UserLive.Signup do
     socket =
       case Token.verify(token, %{email: email}) do
         {:ok, token} -> socket |> assign(token: token) |> assign(email: email)
+        {:error, :nil_email} -> socket |> assign(token: nil) |> assign(email: nil)
         {:error, error} -> socket |> put_flash(:error, error) |> redirect(to: ~p"/users/logout")
       end
 

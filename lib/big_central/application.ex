@@ -17,7 +17,8 @@ defmodule BigCentral.Application do
       # Start a worker by calling: BigCentral.Worker.start_link(arg)
       # {BigCentral.Worker, arg},
       # Start to serve requests, typically the last entry
-      BigCentralWeb.Endpoint
+      BigCentralWeb.Endpoint,
+      EncryptedFileServer
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
