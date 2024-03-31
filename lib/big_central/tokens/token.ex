@@ -20,15 +20,14 @@ defmodule BigCentral.Token do
       {:err, :user_not_found}
     end
 
-    email_fact = [{"email", "string", [email]}]
-
-    rights_fact = [
+    facts = [
+      {"user", "string", [user.id |> Integer.to_string()]},
       {"rights", "set", ["read", "write", "query"]}
     ]
 
     t =
       Application.fetch_env!(:big_central, :token_private_key)
-      |> Biscuit.generate(email_fact ++ rights_fact)
+      |> Biscuit.generate(facts)
 
     Tokens.create_token(%{token: t, user_id: user.id, valid: true})
   end
