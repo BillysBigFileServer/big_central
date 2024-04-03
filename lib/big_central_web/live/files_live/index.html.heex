@@ -1,2 +1,4 @@
-<h1>Files</h1>
-<%= file(@files) %>
+<h1 id="title" phx-hook="AddMe">Files</h1>
+<%= for file <- @files do %>
+    <p><%= file_name(file) %></p>
+<% end %>

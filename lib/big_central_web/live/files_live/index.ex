@@ -21,10 +21,9 @@ defmodule BigCentralWeb.FilesLive.Index do
   end
 
   # shows the id for a single file
-  def file(files) do
-    files
-    |> Enum.map(&elem(&1, 0))
-    |> Enum.join(", ")
+  def file_name(files) do
+    {_id, meta} = files
+    meta
   end
 
   @impl true
