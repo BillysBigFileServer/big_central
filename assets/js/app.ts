@@ -27,7 +27,7 @@ import init, { add } from "./wasm";
 let Hooks = {}
 Hooks.AddMe = {
   mounted() {
-    init()
+    init("/wasm/wasm_bg.wasm")
       .then(() => {
       console.log(add(1, 2));
     });

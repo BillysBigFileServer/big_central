@@ -1,1 +1,1 @@
-/home/billy/Projects/befs/big_central/assets/native/result/pkg/wasm.js
+../../priv/static/wasm/wasm.js

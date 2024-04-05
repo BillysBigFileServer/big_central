@@ -1,1 +1,1 @@
-/home/billy/Projects/befs/big_central/assets/native/result/pkg/wasm.d.ts
+../../priv/static/wasm/wasm.d.ts

@@ -57,7 +57,8 @@ config :big_central, BigCentralWeb.Endpoint,
 config :big_central, BigCentralWeb.Endpoint,
   live_reload: [
     patterns: [
-      ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"priv/static/(?!uploads/).*(ts|js|css|png|jpeg|jpg|gif|svg|wasm)$",
+      ~r"wasm/src/.*",
       ~r"priv/gettext/.*(po)$",
       ~r"lib/big_central_web/(controllers|live|components)/.*(ex|heex)$"
     ]
