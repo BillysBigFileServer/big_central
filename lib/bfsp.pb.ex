@@ -1,3 +1,12 @@
+defmodule Bfsp.Files.EncryptedFileMetadata do
+  @moduledoc false
+
+  use Protobuf, protoc_gen_elixir_version: "0.12.0", syntax: :proto3
+
+  field :metadata, 1, type: :bytes
+  field :nonce, 2, type: :bytes
+end
+
 defmodule Bfsp.Files.FileServerMessage.UploadChunk do
   @moduledoc false
 
@@ -44,7 +53,9 @@ defmodule Bfsp.Files.FileServerMessage.UploadFileMetadata do
 
   use Protobuf, protoc_gen_elixir_version: "0.12.0", syntax: :proto3
 
-  field :encrypted_file_metadata, 1, type: :bytes, json_name: "encryptedFileMetadata"
+  field :encrypted_file_metadata, 1,
+    type: Bfsp.Files.EncryptedFileMetadata,
+    json_name: "encryptedFileMetadata"
 end
 
 defmodule Bfsp.Files.FileServerMessage.DownloadFileMetadataQuery do
@@ -191,17 +202,12 @@ defmodule Bfsp.Files.DownloadFileMetadataResp do
 
   oneof :response, 0
 
-  field :encrypted_file_metadata, 1, type: :bytes, json_name: "encryptedFileMetadata", oneof: 0
+  field :encrypted_file_metadata, 1,
+    type: Bfsp.Files.EncryptedFileMetadata,
+    json_name: "encryptedFileMetadata",
+    oneof: 0
+
   field :err, 2, type: :string, oneof: 0
-end
-
-defmodule Bfsp.Files.ListFileMetadataResp.FileMetadata do
-  @moduledoc false
-
-  use Protobuf, protoc_gen_elixir_version: "0.12.0", syntax: :proto3
-
-  field :id, 1, type: :int64
-  field :encrypted_file_metadata, 2, type: :string, json_name: "encryptedFileMetadata"
 end
 
 defmodule Bfsp.Files.ListFileMetadataResp.FileMetadatas.MetadatasEntry do
@@ -210,7 +216,7 @@ defmodule Bfsp.Files.ListFileMetadataResp.FileMetadatas.MetadatasEntry do
   use Protobuf, map: true, protoc_gen_elixir_version: "0.12.0", syntax: :proto3
 
   field :key, 1, type: :int64
-  field :value, 2, type: :bytes
+  field :value, 2, type: Bfsp.Files.EncryptedFileMetadata
 end
 
 defmodule Bfsp.Files.ListFileMetadataResp.FileMetadatas do

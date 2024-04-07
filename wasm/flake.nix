@@ -19,7 +19,9 @@
         inputs = with pkgs; [
           wasm-pack
           cargo-binutils
+          zig
           wasm-bindgen-cli
+          protobuf
           # for wasm-opt
           binaryen
           (rust-bin.stable.latest.minimal.override {
@@ -41,7 +43,7 @@
           buildPhase = ''
             echo 'Building wasm...'
             # We need to specify the home dir for wasm-pack to work
-            HOME=$(mktemp -d fake-homeXXXX) RUST_LOG=debug wasm-pack build --release --target web --out-dir ./pkg -m no-install --no-pack
+            HOME=$(mktemp -d fake-homeXXXX) CC="zig cc -target wasm32-freestanding" RUST_LOG=debug wasm-pack build --release --target web --out-dir ./pkg -m no-install --no-pack
           '';
           installPhase = ''
             mkdir -p $out

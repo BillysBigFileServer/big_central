@@ -22,17 +22,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "topbar"
 
-import init, { add } from "./wasm";
+import { show_files, set_encryption_key } from "./files";
 
-let Hooks = {}
-Hooks.AddMe = {
-  mounted() {
-    init("/wasm/wasm_bg.wasm")
-      .then(() => {
-      console.log(add(1, 2));
-    });
-  }
-};
+let Hooks = {};
 
 let csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {
@@ -45,6 +37,11 @@ let liveSocket = new LiveSocket("/live", Socket, {
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
+
+
+window.addEventListener("phx:show-files", show_files)
+// TODO: we need to hash the password before sending it to the server (client-side hashing)
+window.addEventListener("phx:set-encryption-key", set_encryption_key);
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

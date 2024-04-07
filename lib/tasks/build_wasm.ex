@@ -4,7 +4,7 @@ defmodule Mix.Tasks.BuildWasm do
   def run(_) do
     IO.puts("Building wasm...")
 
-    System.cmd("nix", ["build"], cd: "wasm/")
+    System.cmd("nix", ["build", ".?submodules=1"], cd: "./wasm/")
 
     File.rm_rf!("priv/static/wasm/")
     File.mkdir_p!("priv/static/wasm/")

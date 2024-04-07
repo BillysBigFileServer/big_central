@@ -1,3 +1,6 @@
 [submodule "native/biscuit-rust"]
 	path = native/biscuit-rust
 	url = git@github.com:Billy-s-E2EE-File-Server/biscuit-rust.git
+[submodule "wasm/bfsp"]
+	path = wasm/bfsp
+	url = git@github.com:Billy-s-E2EE-File-Server/bfsp.git

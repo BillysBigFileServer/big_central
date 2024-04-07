@@ -56,6 +56,7 @@ defmodule BigCentralWeb.UserLive.Signup do
            {:ok, _} <- Users.create_user(%{email: email, password: password}) do
         socket
         |> put_flash(:info, "Signed up successfully")
+        |> push_event("set-encryption-key", %{password: password})
         |> assign(trigger_submit: true)
       else
         {:error, _, :database} ->
