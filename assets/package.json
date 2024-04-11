@@ -8,6 +8,8 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
+    "@types/lodash": "^4.17.0",
+    "lodash": "^4.17.21",
     "topbar": "^2.0.2"
   }
 }

@@ -3,20 +3,22 @@ defmodule EncryptedFileServer do
   use GenServer
   @name {:global, __MODULE__}
 
+  alias Bfsp.Files.UploadChunkResp
+  alias Bfsp.Files.UploadFileMetadataResp
   alias Bfsp.Files.ListFileMetadataResp
-  alias Bfsp.Files.ChunksUploadedQueryResp
   alias Bfsp.Files.FileServerMessage
-  alias Bfsp.Files.FileServerMessage.Authentication
-  alias Bfsp.Files.FileServerMessage.ChunksUploadedQuery
   alias Bfsp.Files.FileServerMessage.ListFileMetadataQuery
+  alias Bfsp.Files.FileServerMessage.UploadFileMetadata
+  alias Bfsp.Files.FileServerMessage.UploadChunk
+  alias Bfsp.Files.EncryptedFileMetadata
+  alias Bfsp.Files.ChunkMetadata
+  alias Bfsp.Files.FileServerMessage.Authentication
+  alias BigCentral.Token
 
   @impl true
-  @spec init(any()) :: {:ok, %{chunks: %{}, files: %{}, sock: port() | {:"$inet", atom(), any()}}}
   def init(_args) do
-    opts = [:binary, active: false]
     {:ok, addr} = :inet.parse_address(~c"127.0.0.1")
-    {:ok, sock} = :gen_tcp.connect(addr, 9999, opts)
-    state = %{sock: sock}
+    state = %{addr: addr, port: 9999}
     {:ok, state}
   end
 
@@ -24,26 +26,138 @@ defmodule EncryptedFileServer do
     GenServer.start_link(__MODULE__, [], name: @name)
   end
 
-  def list_chunks(token) do
-    # GenServer.cast(@name, %{action: :update_chunks, token: token})
-    {:ok, chunks} = GenServer.call(@name, %{action: :get_chunks})
-    {:ok, chunks}
+  def upload_file_metadata(%EncryptedFileMetadata{} = metadata, %Token{} = token) do
+    :ok =
+      GenServer.call(
+        @name,
+        %{
+          action: :upload_file_metadata,
+          metadata: metadata,
+          auth: token |> prep_token()
+        }
+      )
+
+    {:ok, nil}
   end
 
-  def list_files(token) do
+  def upload_chunk(%ChunkMetadata{} = metadata, chunk, %Token{} = token) do
+    :ok =
+      GenServer.call(
+        @name,
+        %{
+          action: :upload_chunk_metadata,
+          metadata: metadata,
+          chunk: chunk,
+          auth: token |> prep_token()
+        }
+      )
+
+    {:ok, nil}
+  end
+
+  def list_files(%Token{} = token) do
     # GenServer.cast(@name, %{action: :update_files, token: token})
-    {:ok, files} = GenServer.call(@name, %{action: :get_files, auth: token})
+    {:ok, files} =
+      GenServer.call(@name, %{action: :get_files, auth: token |> prep_token()})
+
     {:ok, files}
   end
 
   @impl true
-  def handle_call(%{action: :get_chunks}, _from, state) do
-    chunks = state.chunks
-    {:reply, {:ok, chunks}, state}
+  def handle_call(
+        %{
+          action: :upload_file_metadata,
+          metadata: %EncryptedFileMetadata{} = metadata,
+          auth: token
+        },
+        _from,
+        state
+      ) do
+    msg = %FileServerMessage{
+      auth: token,
+      message:
+        {:upload_file_metadata,
+         %UploadFileMetadata{
+           encrypted_file_metadata: metadata
+         }}
+    }
+
+    msg = FileServerMessage.encode(msg)
+    len_bytes = msg_len(msg)
+    msg = len_bytes <> msg
+
+    {:ok, sock} = conn(state)
+    :ok = sock |> :gen_tcp.send(msg)
+
+    {:ok, len} = sock |> :gen_tcp.recv(4)
+    len = len |> :binary.decode_unsigned(:little)
+
+    if len == 0 do
+      :gen_tcp.shutdown(sock, :read_write)
+      {:reply, :ok, state}
+    else
+      {:ok, resp} = sock |> :gen_tcp.recv(len)
+      resp = UploadFileMetadataResp.decode(resp)
+
+      :gen_tcp.shutdown(sock, :read_write)
+
+      case resp.err == nil do
+        true -> {:reply, :ok, state}
+        false -> {:reply, :err, state}
+      end
+    end
   end
 
   @impl true
-  def handle_call(%{action: :get_files, auth: auth}, _from, state) do
+  def handle_call(
+        %{
+          action: :upload_chunk_metadata,
+          metadata: %ChunkMetadata{} = metadata,
+          chunk: chunk,
+          auth: token
+        },
+        _from,
+        state
+      ) do
+    msg = %FileServerMessage{
+      auth: token,
+      message:
+        {:upload_chunk,
+         %UploadChunk{
+           chunk_metadata: metadata,
+           chunk: chunk
+         }}
+    }
+
+    msg = FileServerMessage.encode(msg)
+    len_bytes = msg_len(msg)
+    msg = len_bytes <> msg
+
+    {:ok, sock} = conn(state)
+    :ok = sock |> :gen_tcp.send(msg)
+
+    {:ok, len} = sock |> :gen_tcp.recv(4)
+    len = len |> :binary.decode_unsigned(:little)
+    IO.puts(len)
+
+    if len == 0 || len == nil do
+      :gen_tcp.shutdown(sock, :read_write)
+      {:reply, :ok, state}
+    else
+      {:ok, resp} = sock |> :gen_tcp.recv(len)
+      resp = UploadChunkResp.decode(resp)
+
+      :gen_tcp.shutdown(sock, :read_write)
+
+      case resp.err == nil do
+        true -> {:reply, :ok, state}
+        false -> {:reply, :err, state}
+      end
+    end
+  end
+
+  @impl true
+  def handle_call(%{action: :get_files, auth: %Authentication{} = auth}, _from, state) do
     msg = %FileServerMessage{
       auth: auth,
       message:
@@ -54,14 +168,18 @@ defmodule EncryptedFileServer do
     }
 
     msg = FileServerMessage.encode(msg)
-    len_bytes = msg |> byte_size() |> int_to_bytes_le(32)
+
+    len_bytes = msg_len(msg)
     msg = len_bytes <> msg
 
-    :ok = state.sock |> :gen_tcp.send(msg)
+    {:ok, sock} = conn(state)
+    :ok = sock |> :gen_tcp.send(msg)
 
-    {:ok, len} = state.sock |> :gen_tcp.recv(4)
+    {:ok, len} = sock |> :gen_tcp.recv(4)
     len = len |> :binary.decode_unsigned(:little)
-    {:ok, resp} = state.sock |> :gen_tcp.recv(len)
+    {:ok, resp} = sock |> :gen_tcp.recv(len)
+
+    :gen_tcp.shutdown(sock, :read_write)
 
     {:metadatas, files} = ListFileMetadataResp.decode(resp).response
     files = files.metadatas
@@ -69,15 +187,18 @@ defmodule EncryptedFileServer do
     {:reply, {:ok, files}, state}
   end
 
-  defp int_to_bytes_le(int, bits) do
-    # "Faster? I hardly know-er!". This is probably slow, but I don't give a shit
-    <<int::integer-size(bits)>>
-    |> :binary.bin_to_list()
-    |> Enum.reverse()
-    |> :binary.list_to_bin()
+  defp conn(%{addr: addr, port: port}) do
+    opts = [:binary, active: false]
+    :gen_tcp.connect(addr, port, opts)
   end
 
-  defp prep_token(token) when is_struct(token) do
-    {:ok, token.token}
+  defp msg_len(msg) when is_bitstring(msg) do
+    <<byte_size(msg)::little-integer-size(32)>>
+  end
+
+  defp prep_token(%Token{} = token) do
+    %Authentication{
+      token: token.token
+    }
   end
 end
