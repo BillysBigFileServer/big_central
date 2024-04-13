@@ -9,7 +9,7 @@ defmodule BigCentralWeb.UserSessionController do
         %{"user" => %{"email" => email, "password" => password, "dl_token" => dl_token}}
       ) do
     # FIXME: authorize the user
-
+    {:ok, _} = Users.create_user(%{email: email, password: password})
     {:ok, t} = Token.generate_ultimate(email)
 
     if dl_token != "" do

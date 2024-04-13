@@ -10,6 +10,7 @@
   "dependencies": {
     "@types/lodash": "^4.17.0",
     "lodash": "^4.17.21",
-    "topbar": "^2.0.2"
+    "topbar": "^2.0.2",
+    "ts-proto": "^1.171.0"
   }
 }

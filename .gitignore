@@ -44,4 +44,6 @@ npm-debug.log
 
 logfile
 
+**/target
+
 /priv/native/

@@ -24,6 +24,11 @@ import { show_files, set_encryption_key } from "./files";
 import { liveSocket } from "./socket"
 
 
+if (navigator.userAgent.indexOf('Safari') != -1) {
+    alert("This site isn't compatible with safari. Go ahead and try though :)");
+}
+
+
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))

@@ -52,8 +52,7 @@ defmodule BigCentralWeb.UserLive.Signup do
     socket =
       with {:ok, _, _} <- Validation.validate(email, :email),
            {:ok, _, _} <- Validation.validate(password, :password),
-           {true, :dl_token} <- {dl_token == nil || dl_token_valid.(), :dl_token},
-           {:ok, _} <- Users.create_user(%{email: email, password: password}) do
+           {true, :dl_token} <- {dl_token == nil || dl_token_valid.(), :dl_token} do
         socket
         |> put_flash(:info, "Signed up successfully")
         |> push_event("set-encryption-key", %{password: password})

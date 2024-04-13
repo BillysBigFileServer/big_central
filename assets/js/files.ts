@@ -1,21 +1,19 @@
 import init, * as f from "./wasm";
 import {ViewHook} from "phoenix_live_view"
 import _ from "lodash"
-
-interface EncryptedFileMetadata  {
-  nonce: string;
-  metadata: string;
-}
-
-type FileMetadata = { [file_id: number]: EncryptedFileMetadata;}
+import * as efs from "./efs";
+import * as bfsp from "./bfsp";
 
 const wasm = init("/wasm/wasm_bg.wasm");
 
-export async function upload_file_metadata(hook: ViewHook) {
+export async function upload_file_metadata(_hook: ViewHook) {
+  console.log("Recording performance");
+  const t0 = performance.now()
+
   await wasm;
 
   const nonce = f.create_encryption_nonce();
-  const enc_key = localStorage.getItem("encryption_key")!;
+  const enc_key  = localStorage.getItem("encryption_key")!;
 
   // this is fine ;)
   const file_button: any = document.getElementById("upload_file_button");
@@ -26,29 +24,19 @@ export async function upload_file_metadata(hook: ViewHook) {
     return;
   }
 
-  let chunk_ids: Uint8Array = new Uint8Array();
+  let chunks: Uint8Array = new Uint8Array();
 
-  let fr = new FileReader();
-  let offset = 0;
-  fr.onload = function(e) {
-    if (offset >= file.size) {
-      const file_name = file.name;
-      // We can't pass an array of arrays to Rust, so we just flatten it
-      const metadata = f.create_file_metadata(file_name, enc_key, nonce, chunk_ids);
-      console.log(metadata.length);
-      console.log(nonce.length);
-      // Send the metadata up to elixir phoenix
-      hook.pushEvent("upload_file_metadata", {file_metadata: metadata, nonce: nonce});
+  const sock = await efs.connect();
 
-      console.log("Done");
+  const reader = sock.readable.getReader();
+  const writer = sock.writable.getWriter();
 
-      return;
-    }
+  // TODO: we need to parallelize this
+  for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
+    const slice = await file!.slice(offset, offset + 1024 * 1024).arrayBuffer();
+    const view: Uint8Array = new Uint8Array(slice);
 
-    const result= <ArrayBuffer> this.result;
-    const view = new Uint8Array(result);
-
-     // Generate chunk metadata, upload it, etc
+    // Generate chunk metadata, upload it, etc
     const chunk_hash = f.chunk_hash(view);
     const chunk_id = f.chunk_id(chunk_hash);
     const chunk_len = f.chunk_len(view);
@@ -57,20 +45,67 @@ export async function upload_file_metadata(hook: ViewHook) {
     console.log((offset / file.size) * 100 + "%");
 
     const indice = offset / (1024 * 1024);
-    const chunk_meta: string = f.create_chunk_metadata(chunk_hash, chunk_id, chunk_len, BigInt(indice));
+    const chunk_meta: Uint8Array = f.create_chunk_metadata(chunk_hash, chunk_id, chunk_len, BigInt(indice));
     const encrypted_chunk = f.encrypt_chunk(view, chunk_meta, enc_key);
 
-    hook.pushEvent("upload_chunk_metadata", {chunk_metadata: chunk_meta, chunk: encrypted_chunk});
+    const chunk_metadata_msg = bfsp.FileServerMessage_UploadChunk.create({
+      chunkMetadata: bfsp.ChunkMetadata.create({
+        id: chunk_id,
+        indice: indice,
+        hash: chunk_hash,
+        size: chunk_len,
+      }),
+      chunk: encrypted_chunk,
+    });
+    const msg = prepMessage(bfsp.FileServerMessage.create({
+      uploadChunk: chunk_metadata_msg,
+    }), get_token());
 
-    chunk_ids = concatenateUint8Arrays(chunk_ids, chunk_id);
 
-    // Recursion
-    offset += 1024 * 1024;
-    fr.readAsArrayBuffer(file.slice(offset, offset + 1024 * 1024));
-  };
+    await writer.ready;
+    await writer.write(msg);
 
-  // Read the first MiB of the file as an
-  fr.readAsArrayBuffer(file.slice(0, 1024 * 1024));
+    // TODO: we need to handle errors here
+    const result = await read_all(reader);
+
+    const chunk_info = concatenateUint8Arrays(f.number_to_bytes(BigInt(indice)), chunk_hash);
+    chunks = concatenateUint8Arrays(chunks, chunk_info);
+  }
+
+  const file_name = file.name;
+  // We can't pass an array of arrays to Rust, so we just flatten it
+  const metadata: Uint8Array = f.create_file_metadata(file_name, enc_key, nonce, chunks);
+
+  // Send the metadata up to elixir
+  const file_metadata_msg = bfsp.FileServerMessage_UploadFileMetadata.create({
+    encryptedFileMetadata: bfsp.EncryptedFileMetadata.create({
+      nonce: nonce,
+      metadata: metadata,
+    })
+  });
+
+  const msg = prepMessage(bfsp.FileServerMessage.create({
+    uploadFileMetadata: file_metadata_msg,
+  }), get_token());
+
+
+  console.log("Uploading file metadata" + file_name);
+
+  await writer.ready;
+  await writer.write(msg);
+
+  await read_all(reader);
+
+  await writer.close();
+  await reader.cancel();
+
+  console.log("Finished uploading file " + file_name);
+
+  const t1 = performance.now()
+  console.log("Uploading the file took" + (t1 - t0) / 1000 + " seconds.")
+
+  await show_files(null);
+
 }
 
 function concatenateUint8Arrays(array1: Uint8Array, array2: Uint8Array): Uint8Array {
@@ -83,27 +118,66 @@ function concatenateUint8Arrays(array1: Uint8Array, array2: Uint8Array): Uint8Ar
   return combinedArray;
 }
 
-
-async function show_files(entry: any) {
-  const enc_key = localStorage.getItem("encryption_key");
-  if (enc_key == null) {
-    window.location.replace("/login");
-  }
-  const file_metadatas: FileMetadata = entry.detail.files as FileMetadata;
-  const metadata: Map<number, EncryptedFileMetadata> = new Map();
-
-  // Loop through the object and add key-value pairs to the Map
-  for (const [key, value] of Object.entries(file_metadatas as FileMetadata)) {
-    metadata.set(parseInt(key), value);
-  }
+function get_auth(token: string): bfsp.FileServerMessage_Authentication{
+  return bfsp.FileServerMessage_Authentication.create({
+    token: token,
+  });
+}
 
 
-  let div = document.getElementById("files");
-  div?.replaceChildren();
+function prepMessage(msg: bfsp.FileServerMessage, token: string): Uint8Array {
+  msg.auth = get_auth(token);
 
+  let msg_bin = bfsp.FileServerMessage.encode(msg).finish();
+  let len = numberToLittleEndianUint8Array(msg_bin.length);
+  let final_msg_bin = concatenateUint8Arrays(len, msg_bin);
+  return final_msg_bin;
+}
+
+function get_token(): string {
+  const token = document.getElementById("token")?.getAttribute("value");
+  return token!;
+}
+
+async function show_files(_entry: any) {
+  console.log("showing files");
+  const sock = await efs.connect();
+  let query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
+    ids: [],
+  });
+  let msg = bfsp.FileServerMessage.create({
+    listFileMetadataQuery: query,
+  });
+
+  let msg_bin = prepMessage(msg, get_token());
+
+  const writer = sock.writable.getWriter();
+
+  await writer.ready;
+  await writer.write(msg_bin);
+
+  const reader = sock.readable.getReader();
+
+  const resp_bin = await read_all(reader);
+
+  await writer.close();
+  await reader.cancel();
+
+
+  const resp = bfsp.ListFileMetadataResp.decode(resp_bin);
+
+  const metas: any = resp.metadatas?.metadatas!;
   await wasm;
 
-  for (let meta of metadata.values()) {
+    const enc_key = localStorage.getItem("encryption_key");
+    if (enc_key == null) {
+      window.location.replace("/login");
+    }
+
+    let div = document.getElementById("files");
+    div?.replaceChildren();
+
+  _.values(metas).forEach((meta: bfsp.EncryptedFileMetadata) => {
     let name = f.file_name(meta.metadata, meta.nonce, enc_key!);
 
     let p = document.createElement("p");
@@ -112,7 +186,27 @@ async function show_files(entry: any) {
     p.classList.add("outline-offset-2");
 
     div?.appendChild(p);
+  });
+}
+
+async function read_all(reader: ReadableStreamDefaultReader<any>): Promise<Uint8Array> {
+  // read the first 4 bytes to get the length of the message, then read the rest based on that length
+  let total_data = new Uint8Array();
+  let result = await reader.read();
+
+  const len_bytes = result.value.slice(0, 4);
+  const total_len = new DataView(len_bytes.buffer).getUint32(0, true);
+  let total_data_read = result.value.length - 4;
+
+  total_data = concatenateUint8Arrays(total_data, result.value.slice(4));
+
+  while (total_data_read < total_len) {
+    result = await reader.read();
+    total_data_read += result.value.length;
+    total_data = concatenateUint8Arrays(total_data, result.value);
   }
+
+  return total_data;
 }
 
 
@@ -127,6 +221,17 @@ async function generate_encryption_key(password: string) : Promise<string> {
   await wasm;
   let key = f.create_encryption_key(password);
   return key;
+}
+
+function numberToLittleEndianUint8Array(num: number): Uint8Array {
+  const arr = new Uint8Array(4);
+  for (let i = 0; i < 4; i++) {
+    // Get the current byte using bitwise AND and right shift
+    arr[i] = num & 0xff;
+    // Shift the number right by 8 bits for the next byte
+    num >>>= 8;
+  }
+  return arr;
 }
 
 export { show_files, set_encryption_key };

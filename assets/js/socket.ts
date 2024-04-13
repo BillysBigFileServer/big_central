@@ -2,10 +2,10 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {upload_file_metadata} from "./files"
 
-let Hooks = {};
+let Hooks: any = {};
 Hooks.UploadFileHook = {
     mounted() {
-        this.el.addEventListener("change", e => {
+        this.el.addEventListener("change", (_e: any) => {
             upload_file_metadata(this);
         });
     }

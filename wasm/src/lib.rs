@@ -27,17 +27,26 @@ pub fn chunk_len(chunk: &[u8]) -> u32 {
 #[wasm_bindgen]
 pub fn create_file_metadata(
     file_name: String,
-    key: String,
-    nonce: String,
+    key: &str,
+    nonce: &[u8],
     chunks: &[u8],
-) -> Result<String, String> {
-    let enc_key = EncryptionKey::try_from(key.as_str()).map_err(|err| err.to_string())?;
-    let nonce = EncryptionNonce::try_from(nonce.as_str()).map_err(|err| err.to_string())?;
+) -> Result<Vec<u8>, String> {
+    let enc_key = EncryptionKey::try_from(key).map_err(|err| err.to_string())?;
+    let nonce = EncryptionNonce::try_from(nonce).map_err(|err| err.to_string())?;
+
     let meta = FileMetadata {
         chunks: chunks
-            .chunks_exact(16)
-            .map(|chunk_id| ChunkID::from_bytes(chunk_id.try_into().unwrap()))
-            .collect(),
+            .chunks_exact(8 + ChunkHash::len())
+            .map(|chunk_info| {
+                if chunk_info.len() != 8 + ChunkHash::len() {
+                    return Err("Invalid chunk info length".to_string());
+                }
+
+                let chunk_indice: u64 = u64::from_le_bytes(chunk_info[..8].try_into().unwrap());
+                let chunk_hash = chunk_info[8..].try_into().unwrap();
+                Ok((chunk_indice, ChunkHash::from_bytes(chunk_hash)))
+            })
+            .collect::<Result<HashMap<_, _>, String>>()?,
         file_name,
         file_type: FileType::Image,
         create_time: datetime!(2020-01-01 0:00),
@@ -62,7 +71,7 @@ pub fn create_chunk_metadata(
     id: &[u8],
     chunk_len: u32,
     indice: i64,
-) -> Result<String, String> {
+) -> Result<Vec<u8>, String> {
     let nonce = EncryptionNonce::new();
 
     if indice < 0 {
@@ -77,23 +86,23 @@ pub fn create_chunk_metadata(
         nonce: nonce.to_bytes().to_vec(),
     };
 
-    Ok(chunk_metadata.encode_base64())
+    Ok(chunk_metadata.encode_to_vec())
 }
 
 #[wasm_bindgen]
 pub fn encrypt_chunk(
     mut chunk: Vec<u8>,
-    chunk_meta: String,
+    chunk_meta: &[u8],
     key: String,
-) -> Result<String, String> {
-    let chunk_meta = base64_decode(&chunk_meta);
-    let chunk_meta = ChunkMetadata::decode(chunk_meta.as_slice())
+) -> Result<Vec<u8>, String> {
+    let chunk_meta = ChunkMetadata::decode(chunk_meta)
         .map_err(|err| format!("Error decoding chunk metadata: {err:?}"))?;
     let enc_key = EncryptionKey::try_from(key.as_str()).map_err(|err| err.to_string())?;
     enc_key
         .compress_encrypt_chunk_in_place(&mut chunk, &chunk_meta)
         .unwrap();
-    Ok(base64_encode(&chunk))
+
+    Ok(chunk)
 }
 
 #[wasm_bindgen]
@@ -102,16 +111,16 @@ pub fn create_encryption_key(password: String) -> String {
 }
 
 #[wasm_bindgen]
-pub fn create_encryption_nonce() -> String {
-    EncryptionNonce::new().serialize()
+pub fn create_encryption_nonce() -> Vec<u8> {
+    EncryptionNonce::new().to_bytes().to_vec()
 }
 
-static DECRYPTED_METADATA: Lazy<RwLock<HashMap<String, FileMetadata>>> =
+static DECRYPTED_METADATA: Lazy<RwLock<HashMap<Vec<u8>, FileMetadata>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 fn decrypt_metadata(
-    encrypted_metadata: String,
-    nonce: String,
+    encrypted_metadata: Vec<u8>,
+    nonce: Vec<u8>,
     enc_key: String,
 ) -> Result<FileMetadata, String> {
     if let Some(meta) = DECRYPTED_METADATA.read().unwrap().get(&encrypted_metadata) {
@@ -120,10 +129,10 @@ fn decrypt_metadata(
 
     let enc_key = EncryptionKey::try_from(enc_key.as_str())
         .map_err(|err| format!("Error deserializing key: {err}"))?;
-    let nonce = EncryptionNonce::try_from(nonce.as_str())
+    let nonce = EncryptionNonce::try_from(nonce)
         .map_err(|err| format!("Error deserializing nonce: {err}"))?;
 
-    let meta = FileMetadata::decrypt_deserialize(&enc_key, nonce, &encrypted_metadata)
+    let meta = FileMetadata::decrypt_deserialize(&enc_key, nonce, encrypted_metadata.clone())
         .map_err(|err| err.to_string())?;
 
     DECRYPTED_METADATA
@@ -136,8 +145,8 @@ fn decrypt_metadata(
 
 #[wasm_bindgen]
 pub fn file_name(
-    encrypted_metadata: String,
-    nonce: String,
+    encrypted_metadata: Vec<u8>,
+    nonce: Vec<u8>,
     enc_key: String,
 ) -> Result<String, String> {
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
@@ -146,8 +155,8 @@ pub fn file_name(
 
 #[wasm_bindgen]
 pub fn file_type(
-    encrypted_metadata: String,
-    nonce: String,
+    encrypted_metadata: Vec<u8>,
+    nonce: Vec<u8>,
     enc_key: String,
 ) -> Result<String, String> {
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
@@ -156,14 +165,23 @@ pub fn file_type(
 
 #[wasm_bindgen]
 pub fn file_chunks(
-    encrypted_metadata: String,
-    nonce: String,
+    encrypted_metadata: Vec<u8>,
+    nonce: Vec<u8>,
     enc_key: String,
 ) -> Result<Vec<u8>, String> {
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
     Ok(meta
         .chunks
         .iter()
-        .flat_map(|chunk_id| chunk_id.to_bytes().to_vec())
+        .flat_map(|(chunk_indice, chunk_hash)| {
+            let mut chunk_info = chunk_indice.to_le_bytes().to_vec();
+            chunk_info.extend_from_slice(chunk_hash.to_bytes());
+            chunk_info
+        })
         .collect())
+}
+
+#[wasm_bindgen]
+pub fn number_to_bytes(num: u64) -> Vec<u8> {
+    num.to_le_bytes().to_vec()
 }
