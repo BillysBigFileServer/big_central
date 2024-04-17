@@ -2,9 +2,10 @@ use std::{collections::HashMap, sync::RwLock};
 
 use bfsp::{
     hash_chunk, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey, EncryptionNonce, FileMetadata,
-    FileType, Message,
+    FileType, Message, PrependLen,
 };
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use time::macros::datetime;
 use wasm_bindgen::prelude::*;
 
@@ -14,9 +15,9 @@ pub fn chunk_hash(chunk: &[u8]) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn chunk_id(chunk_hash: &[u8]) -> Vec<u8> {
+pub fn chunk_id(chunk_hash: &[u8]) -> String {
     let chunk_hash = ChunkHash::from_bytes(chunk_hash.try_into().unwrap());
-    ChunkID::new(&chunk_hash).to_bytes().to_vec()
+    ChunkID::new(&chunk_hash).to_string()
 }
 
 #[wasm_bindgen]
@@ -25,34 +26,55 @@ pub fn chunk_len(chunk: &[u8]) -> u32 {
 }
 
 #[wasm_bindgen]
+pub fn chunk_nonce() -> Vec<u8> {
+    EncryptionNonce::new().to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
 pub fn create_file_metadata(
     file_name: String,
     key: &str,
     nonce: &[u8],
-    chunks: &[u8],
+    chunk_bytes: &[u8],
 ) -> Result<Vec<u8>, String> {
     let enc_key = EncryptionKey::try_from(key).map_err(|err| err.to_string())?;
     let nonce = EncryptionNonce::try_from(nonce).map_err(|err| err.to_string())?;
 
+    let mut chunks: Vec<ChunkMetadata> = Vec::new();
+
+    let mut chunk_indice = 0;
+    while chunk_indice < chunk_bytes.len() {
+        let chunk_len_bytes: [u8; 4] = chunk_bytes[chunk_indice..chunk_indice + 4]
+            .try_into()
+            .map_err(|_| "Error converting chunk length bytes".to_string())?;
+        let chunk_len: u32 = u32::from_le_bytes(chunk_len_bytes);
+        let chunk_meta = &chunk_bytes[chunk_indice + 4..chunk_indice + 4 + chunk_len as usize];
+
+        chunk_indice += 4 + chunk_len as usize;
+
+        chunks.push(ChunkMetadata::decode(chunk_meta).map_err(|err| err.to_string())?);
+    }
+
     let meta = FileMetadata {
         chunks: chunks
-            .chunks_exact(8 + ChunkHash::len())
-            .map(|chunk_info| {
-                if chunk_info.len() != 8 + ChunkHash::len() {
-                    return Err("Invalid chunk info length".to_string());
-                }
+            .into_iter()
+            .map(|chunk| {
+                let chunk_id: ChunkID = ChunkID::try_from(chunk.id.as_str()).map_err(|err| {
+                    format!("Error converting chunk id to ChunkID: {err:?} for chunk: {chunk:?}")
+                })?;
+                let chunk_indice: u64 = chunk.indice.try_into().map_err(|err| {
+                    format!("Error converting chunk indice to u64: {err:?} for chunk: {chunk:?}")
+                })?;
 
-                let chunk_indice: u64 = u64::from_le_bytes(chunk_info[..8].try_into().unwrap());
-                let chunk_hash = chunk_info[8..].try_into().unwrap();
-                Ok((chunk_indice, ChunkHash::from_bytes(chunk_hash)))
+                Ok((chunk_indice, chunk_id))
             })
             .collect::<Result<HashMap<_, _>, String>>()?,
         file_name,
-        file_type: FileType::Image,
+        file_type: FileType::Binary,
         create_time: datetime!(2020-01-01 0:00),
         modification_time: datetime!(2020-01-01 0:00),
     };
-    Ok(meta.encrypt_serialize(&enc_key, nonce))
+    Ok(meta.encrypt_serialize(&enc_key, nonce)?)
 }
 
 #[wasm_bindgen]
@@ -65,41 +87,40 @@ pub fn base64_decode(data: &str) -> Vec<u8> {
     bfsp::base64_decode(data).unwrap()
 }
 
-#[wasm_bindgen]
-pub fn create_chunk_metadata(
-    hash: &[u8],
-    id: &[u8],
-    chunk_len: u32,
-    indice: i64,
-) -> Result<Vec<u8>, String> {
-    let nonce = EncryptionNonce::new();
-
-    if indice < 0 {
-        return Err("Indice must be positive".to_string());
-    }
-
-    let chunk_metadata = ChunkMetadata {
-        id: id.to_vec(),
-        hash: hash.to_vec(),
-        size: chunk_len,
-        indice,
-        nonce: nonce.to_bytes().to_vec(),
-    };
-
-    Ok(chunk_metadata.encode_to_vec())
+#[derive(Serialize, Deserialize)]
+pub struct FileChunks {
+    indice: u64,
+    id: String,
 }
 
 #[wasm_bindgen]
 pub fn encrypt_chunk(
     mut chunk: Vec<u8>,
-    chunk_meta: &[u8],
+    chunk_meta_w_len: &[u8],
     key: String,
 ) -> Result<Vec<u8>, String> {
-    let chunk_meta = ChunkMetadata::decode(chunk_meta)
+    let chunk_meta = ChunkMetadata::decode(&chunk_meta_w_len[4..])
         .map_err(|err| format!("Error decoding chunk metadata: {err:?}"))?;
     let enc_key = EncryptionKey::try_from(key.as_str()).map_err(|err| err.to_string())?;
     enc_key
         .compress_encrypt_chunk_in_place(&mut chunk, &chunk_meta)
+        .unwrap();
+
+    Ok(chunk)
+}
+
+#[wasm_bindgen]
+pub fn decrypt_chunk(
+    mut chunk: Vec<u8>,
+    chunk_meta_no_len: &[u8],
+    key: String,
+) -> Result<Vec<u8>, String> {
+    console_error_panic_hook::set_once();
+    let chunk_meta = ChunkMetadata::decode(chunk_meta_no_len)
+        .map_err(|err| format!("Error decoding chunk metadata: {err:?}"))?;
+    let enc_key = EncryptionKey::try_from(key.as_str()).map_err(|err| err.to_string())?;
+    enc_key
+        .decrypt_decompress_chunk_in_place(&mut chunk, &chunk_meta)
         .unwrap();
 
     Ok(chunk)
@@ -168,15 +189,18 @@ pub fn file_chunks(
     encrypted_metadata: Vec<u8>,
     nonce: Vec<u8>,
     enc_key: String,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<String>, String> {
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
+
     Ok(meta
         .chunks
         .iter()
-        .flat_map(|(chunk_indice, chunk_hash)| {
-            let mut chunk_info = chunk_indice.to_le_bytes().to_vec();
-            chunk_info.extend_from_slice(chunk_hash.to_bytes());
-            chunk_info
+        .map(|(chunk_indice, chunk_id)| {
+            serde_json::to_string(&FileChunks {
+                indice: *chunk_indice,
+                id: chunk_id.to_string(),
+            })
+            .unwrap()
         })
         .collect())
 }

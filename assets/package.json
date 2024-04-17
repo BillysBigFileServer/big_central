@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@types/lodash": "^4.17.0",
+    "@types/streamsaver": "^2.0.4",
     "lodash": "^4.17.21",
+    "streamsaver": "^2.0.6",
     "topbar": "^2.0.2",
     "ts-proto": "^1.171.0"
   }

@@ -10,7 +10,10 @@ crate-type = ["cdylib"]
 lto = "fat"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
 wasm-bindgen = { version = "=0.2.91" }
 bfsp = { path = "./bfsp/" }
 time = { version = "*", features = ["macros"] }
 once_cell = { version = "1" }
+console_error_panic_hook = "0.1.7"

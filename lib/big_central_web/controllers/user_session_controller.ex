@@ -3,6 +3,7 @@ defmodule BigCentralWeb.UserSessionController do
 
   alias BigCentral.Tokens
   alias BigCentral.Token
+  alias BigCentral.Users
 
   def create(
         conn,

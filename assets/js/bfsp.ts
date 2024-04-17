@@ -26,15 +26,15 @@ export interface FileServerMessage_UploadChunk {
 }
 
 export interface FileServerMessage_ChunksUploadedQuery {
-  chunkIds: Uint8Array[];
+  chunkIds: string[];
 }
 
 export interface FileServerMessage_DownloadChunkQuery {
-  chunkId: Uint8Array;
+  chunkId: string;
 }
 
 export interface FileServerMessage_DeleteChunksQuery {
-  chunkIds: Uint8Array[];
+  chunkIds: string[];
 }
 
 export interface FileServerMessage_Authentication {
@@ -109,7 +109,7 @@ export interface ListFileMetadataResp_FileMetadatas_MetadatasEntry {
 }
 
 export interface ChunkMetadata {
-  id: Uint8Array;
+  id: string;
   hash: Uint8Array;
   size: number;
   indice: number;
@@ -484,7 +484,7 @@ function createBaseFileServerMessage_ChunksUploadedQuery(): FileServerMessage_Ch
 export const FileServerMessage_ChunksUploadedQuery = {
   encode(message: FileServerMessage_ChunksUploadedQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.chunkIds) {
-      writer.uint32(10).bytes(v!);
+      writer.uint32(10).string(v!);
     }
     return writer;
   },
@@ -501,7 +501,7 @@ export const FileServerMessage_ChunksUploadedQuery = {
             break;
           }
 
-          message.chunkIds.push(reader.bytes());
+          message.chunkIds.push(reader.string());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -514,14 +514,14 @@ export const FileServerMessage_ChunksUploadedQuery = {
 
   fromJSON(object: any): FileServerMessage_ChunksUploadedQuery {
     return {
-      chunkIds: globalThis.Array.isArray(object?.chunkIds) ? object.chunkIds.map((e: any) => bytesFromBase64(e)) : [],
+      chunkIds: globalThis.Array.isArray(object?.chunkIds) ? object.chunkIds.map((e: any) => globalThis.String(e)) : [],
     };
   },
 
   toJSON(message: FileServerMessage_ChunksUploadedQuery): unknown {
     const obj: any = {};
     if (message.chunkIds?.length) {
-      obj.chunkIds = message.chunkIds.map((e) => base64FromBytes(e));
+      obj.chunkIds = message.chunkIds;
     }
     return obj;
   },
@@ -541,13 +541,13 @@ export const FileServerMessage_ChunksUploadedQuery = {
 };
 
 function createBaseFileServerMessage_DownloadChunkQuery(): FileServerMessage_DownloadChunkQuery {
-  return { chunkId: new Uint8Array(0) };
+  return { chunkId: "" };
 }
 
 export const FileServerMessage_DownloadChunkQuery = {
   encode(message: FileServerMessage_DownloadChunkQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.chunkId.length !== 0) {
-      writer.uint32(10).bytes(message.chunkId);
+    if (message.chunkId !== "") {
+      writer.uint32(10).string(message.chunkId);
     }
     return writer;
   },
@@ -564,7 +564,7 @@ export const FileServerMessage_DownloadChunkQuery = {
             break;
           }
 
-          message.chunkId = reader.bytes();
+          message.chunkId = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -576,13 +576,13 @@ export const FileServerMessage_DownloadChunkQuery = {
   },
 
   fromJSON(object: any): FileServerMessage_DownloadChunkQuery {
-    return { chunkId: isSet(object.chunkId) ? bytesFromBase64(object.chunkId) : new Uint8Array(0) };
+    return { chunkId: isSet(object.chunkId) ? globalThis.String(object.chunkId) : "" };
   },
 
   toJSON(message: FileServerMessage_DownloadChunkQuery): unknown {
     const obj: any = {};
-    if (message.chunkId.length !== 0) {
-      obj.chunkId = base64FromBytes(message.chunkId);
+    if (message.chunkId !== "") {
+      obj.chunkId = message.chunkId;
     }
     return obj;
   },
@@ -596,7 +596,7 @@ export const FileServerMessage_DownloadChunkQuery = {
     object: I,
   ): FileServerMessage_DownloadChunkQuery {
     const message = createBaseFileServerMessage_DownloadChunkQuery();
-    message.chunkId = object.chunkId ?? new Uint8Array(0);
+    message.chunkId = object.chunkId ?? "";
     return message;
   },
 };
@@ -608,7 +608,7 @@ function createBaseFileServerMessage_DeleteChunksQuery(): FileServerMessage_Dele
 export const FileServerMessage_DeleteChunksQuery = {
   encode(message: FileServerMessage_DeleteChunksQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.chunkIds) {
-      writer.uint32(10).bytes(v!);
+      writer.uint32(10).string(v!);
     }
     return writer;
   },
@@ -625,7 +625,7 @@ export const FileServerMessage_DeleteChunksQuery = {
             break;
           }
 
-          message.chunkIds.push(reader.bytes());
+          message.chunkIds.push(reader.string());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -638,14 +638,14 @@ export const FileServerMessage_DeleteChunksQuery = {
 
   fromJSON(object: any): FileServerMessage_DeleteChunksQuery {
     return {
-      chunkIds: globalThis.Array.isArray(object?.chunkIds) ? object.chunkIds.map((e: any) => bytesFromBase64(e)) : [],
+      chunkIds: globalThis.Array.isArray(object?.chunkIds) ? object.chunkIds.map((e: any) => globalThis.String(e)) : [],
     };
   },
 
   toJSON(message: FileServerMessage_DeleteChunksQuery): unknown {
     const obj: any = {};
     if (message.chunkIds?.length) {
-      obj.chunkIds = message.chunkIds.map((e) => base64FromBytes(e));
+      obj.chunkIds = message.chunkIds;
     }
     return obj;
   },
@@ -1794,13 +1794,13 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
 };
 
 function createBaseChunkMetadata(): ChunkMetadata {
-  return { id: new Uint8Array(0), hash: new Uint8Array(0), size: 0, indice: 0, nonce: new Uint8Array(0) };
+  return { id: "", hash: new Uint8Array(0), size: 0, indice: 0, nonce: new Uint8Array(0) };
 }
 
 export const ChunkMetadata = {
   encode(message: ChunkMetadata, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.id.length !== 0) {
-      writer.uint32(10).bytes(message.id);
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
     }
     if (message.hash.length !== 0) {
       writer.uint32(18).bytes(message.hash);
@@ -1829,7 +1829,7 @@ export const ChunkMetadata = {
             break;
           }
 
-          message.id = reader.bytes();
+          message.id = reader.string();
           continue;
         case 2:
           if (tag !== 18) {
@@ -1870,7 +1870,7 @@ export const ChunkMetadata = {
 
   fromJSON(object: any): ChunkMetadata {
     return {
-      id: isSet(object.id) ? bytesFromBase64(object.id) : new Uint8Array(0),
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
       hash: isSet(object.hash) ? bytesFromBase64(object.hash) : new Uint8Array(0),
       size: isSet(object.size) ? globalThis.Number(object.size) : 0,
       indice: isSet(object.indice) ? globalThis.Number(object.indice) : 0,
@@ -1880,8 +1880,8 @@ export const ChunkMetadata = {
 
   toJSON(message: ChunkMetadata): unknown {
     const obj: any = {};
-    if (message.id.length !== 0) {
-      obj.id = base64FromBytes(message.id);
+    if (message.id !== "") {
+      obj.id = message.id;
     }
     if (message.hash.length !== 0) {
       obj.hash = base64FromBytes(message.hash);
@@ -1903,7 +1903,7 @@ export const ChunkMetadata = {
   },
   fromPartial<I extends Exact<DeepPartial<ChunkMetadata>, I>>(object: I): ChunkMetadata {
     const message = createBaseChunkMetadata();
-    message.id = object.id ?? new Uint8Array(0);
+    message.id = object.id ?? "";
     message.hash = object.hash ?? new Uint8Array(0);
     message.size = object.size ?? 0;
     message.indice = object.indice ?? 0;
