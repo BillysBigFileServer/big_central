@@ -4,8 +4,12 @@
       <ul class="space-y-4 font-medium">
          <li>
            <label for="upload_file_button"  class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group ms-3">Upload file</label>
-           <input type="file" id="upload_file_button" phx-hook="UploadFileHook" style="visibility:hidden;" />
+           <input type="file" id="upload_file_button" phx-hook="UploadFileHook" style="visibility:hidden;"  />
          </li>
+         <li>
+           <label for="upload_directory_button"  class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group ms-3">Upload directory</label>
+           <input type="file" id="upload_directory_button" phx-hook="UploadDirectoryHook" style="visibility:hidden;" webkitdirectory multiple />
+        </li>
       </ul>
    </div>
 </div>
