@@ -22,6 +22,9 @@ import topbar from "topbar"
 
 import { show_files, set_encryption_key } from "./files";
 import { liveSocket } from "./socket"
+import { validate_email, validate_password } from "./auth";
+import { prep_signup } from "./signup";
+import { prep_login } from "./login";
 
 
 if (navigator.userAgent.indexOf('Safari') != -1 && navigator.userAgent.indexOf('Chrome') == -1) {
@@ -33,6 +36,11 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+document.getElementById("email")?.addEventListener("input", validate_email);
+document.getElementById("password")?.addEventListener("input", validate_password);
+
+document.getElementById("signup_form")?.addEventListener("submit", prep_signup);
+document.getElementById("login_form")?.addEventListener("submit", prep_login);
 
 window.addEventListener("phx:show-files", show_files)
 // TODO: we need to hash the password before sending it to the server (client-side hashing)

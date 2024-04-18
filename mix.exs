@@ -83,7 +83,7 @@ defmodule BigCentral.MixProject do
       "assets.build": ["tailwind big_central", "esbuild big_central"],
       "assets.deploy": [
         "tailwind big_central --minify",
-        "esbuild big_central --minify --external:topbar",
+        "esbuild big_central --minify --tree-shaking=true--external:topbar",
         "phx.digest"
       ]
     ]

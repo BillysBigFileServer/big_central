@@ -1,18 +1,14 @@
 <h1>Hello!</h1>
-<.form for={@form} as={:user} phx-change="validate" phx-submit="submit" action="/users/signup" phx-trigger-action={@trigger_submit}>
+<form action="/users/signup" id="signup_form" method="POST">
+  <input type="email" id="email" name="email" class="w-full min-w-screen" />
+  <p class="text-red-500" id="email_valid_text"></p>
 
-  <div class={"outline outline-offset-2 #{@button_colors.email}"}>
-    <.input type="email" field={@form[:email]}  />
-  </div>
-  <p class="text-red-500"><%= @user_info_texts.email %></p>
+  <input type="password" id="password" class="w-full min-w-screen" />
+  <p class="text-red-500" id="password_valid_text"></p>
 
-  <div class={"outline outline-offset-2 #{@button_colors.password}"}>
-    <.input type = "password" field={@form[:password]} />
-  </div>
+  <input type="hidden" name="dl_token" value={@dl_token} />
+  <input type="hidden" name="action" value="signup">
+  <input type="hidden" name="_csrf_token" value={@csrf_token} />
 
-  <.input type="hidden" field={@form[:dl_token]} value={@dl_token} />
-
-  <p class="text-red-500"><%= @user_info_texts.password%></p>
-
-  <.button>Submit</.button>
-</.form>
+  <input type="submit" value = "Sign Up"/>
+</form>

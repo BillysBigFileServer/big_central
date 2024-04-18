@@ -57,6 +57,22 @@ defmodule BigCentral.Users do
     |> Repo.insert()
   end
 
+  def login_user(%{email: email, password: password}) do
+    case Repo.get_by(User, email: email) do
+      nil ->
+        {:error, :not_found}
+
+      user ->
+        IO.inspect(user)
+        IO.inspect(password)
+
+        case user.password == password do
+          true -> {:ok, user}
+          false -> {:error, :invalid_password}
+        end
+    end
+  end
+
   @doc """
   Updates a user.
 

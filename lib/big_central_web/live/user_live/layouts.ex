@@ -44,7 +44,21 @@ defmodule BigCentralWeb.UserLive.Layouts do
       ~H'''
       <ul class="relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
         <li class="text-[0.8125rem] leading-6 text-zinc-900">
-          OORAH SIGN UP FUCKER
+          <.link
+            href="/login"
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Log in
+          </.link>
+        </li>
+
+        <li class="text-[0.8125rem] leading-6 text-zinc-900">
+          <.link
+            href="/signup"
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Sign up
+          </.link>
         </li>
       </ul>
       '''

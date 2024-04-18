@@ -57,7 +57,7 @@ pub fn create_file_metadata(
 
     let meta = FileMetadata {
         chunks: chunks
-            .into_iter()
+            .iter()
             .map(|chunk| {
                 let chunk_id: ChunkID = ChunkID::try_from(chunk.id.as_str()).map_err(|err| {
                     format!("Error converting chunk id to ChunkID: {err:?} for chunk: {chunk:?}")
@@ -71,6 +71,13 @@ pub fn create_file_metadata(
             .collect::<Result<HashMap<_, _>, String>>()?,
         file_name,
         file_type: FileType::Binary,
+        file_size: chunks
+            .iter()
+            .map(|chunk| {
+                let size: u64 = chunk.size.into();
+                size
+            })
+            .sum(),
         create_time: datetime!(2020-01-01 0:00),
         modification_time: datetime!(2020-01-01 0:00),
     };
@@ -206,6 +213,21 @@ pub fn file_chunks(
 }
 
 #[wasm_bindgen]
+pub fn file_size(
+    encrypted_metadata: Vec<u8>,
+    nonce: Vec<u8>,
+    enc_key: String,
+) -> Result<u64, String> {
+    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
+    Ok(meta.file_size)
+}
+
+#[wasm_bindgen]
 pub fn number_to_bytes(num: u64) -> Vec<u8> {
     num.to_le_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn hash_password(password: &str) -> String {
+    bfsp::hash_password(password)
 }

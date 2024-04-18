@@ -60,6 +60,7 @@ defmodule BigCentralWeb.Router do
       layout: {BigCentralWeb.UserLive.Layouts, :app},
       on_mount: [{BigCentralWeb.UserAuth, :redirect_if_user_is_authenticated}] do
       live "/signup", UserLive.Signup
+      live "/login", UserLive.Login
       live "/tokens", UserLive.Tokens
       live "/auth_app_success", UserLive.AuthAppSuccess
       live "/files", FilesLive.Index
@@ -67,6 +68,6 @@ defmodule BigCentralWeb.Router do
 
     get "/users/logout", UserSessionController, :delete
     post "/users/signup", UserSessionController, :create
-    # post "/users/log_in", UserSessionController, :create
+    post "/users/login", UserSessionController, :create
   end
 end
