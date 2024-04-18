@@ -25,7 +25,7 @@ async function download_file(e: any) {
   await writer.ready;
   await writer.write(msg_bin);
 
-  const resp_bin = await read_all(reader);
+  const resp_bin = await efs.read_all(reader);
   const resp = bfsp.DownloadFileMetadataResp.decode(resp_bin);
 
   if (resp.err != undefined) {
@@ -71,12 +71,21 @@ async function download_file(e: any) {
       const msg_bytes = prepMessage(msg, get_token());
 
       let resp_bin: Uint8Array = new Uint8Array();
+
       while (resp_bin.length == 0) {
         // TODO figure out why we randomly timeout. i might be working around bugs in the firefox impl
         try {
           await writer.ready;
+          console.log("Writing message");
+
+
           await writer.write(msg_bytes);
-          resp_bin = await read_all(reader);
+
+          // we need to make sure the data has been flushed
+          await writer.ready;
+          console.log("Reading response");
+          resp_bin = await efs.read_all(reader);
+          console.log("Read response");
         } catch (err) {
           // TODO make this error a const
           if (err == "Timeout reading data from stream") {
@@ -99,7 +108,7 @@ async function download_file(e: any) {
       const resp = bfsp.DownloadChunkResp.decode(resp_bin);
 
       if (resp.err != undefined) {
-        console.log(resp.err);
+        console.error(resp.err);
         return;
       }
 
@@ -107,11 +116,9 @@ async function download_file(e: any) {
       const chunk_meta_bin: Uint8Array = bfsp.ChunkMetadata.encode(chunk_meta).finish();
       const decrypted_chunk = f.decrypt_chunk(resp.chunkData?.chunk!, chunk_meta_bin, enc_key);
 
-      console.log(decrypted_chunk.length);
+      console.log("Writing chunk " + chunk_meta.id + " to file");
 
       // TODO check chunk hash
-
-      console.log("Writing chunk to file");
       await file_writer.write(decrypted_chunk);
     }
 
@@ -140,7 +147,10 @@ export async function upload_directory(_hook: ViewHook) {
   const files = _.map(directory_button.files, async (file: File) => {
     return new Promise(async (resolve, reject) => {
       try {
-        upload_file_inner(file, enc_key);
+        console.log("Uploading file " + file.name);
+        await upload_file_inner(file, enc_key);
+        console.log("Uploaded file " + file.name);
+        await show_files(null);
         resolve(null);
       } catch (err) {
         reject(err);
@@ -202,14 +212,14 @@ export async function upload_file_inner(file: File, enc_key: string) {
     await writer.write(msg);
 
     // TODO: we need to handle errors here
-    const result_bin = await read_all(reader);
+    const result_bin = await efs.read_all(reader);
     const result = bfsp.UploadChunkResp.decode(result_bin);
 
     if (result.err != undefined) {
       throw new Error("Error uploading chunk: " + result.err);
     }
 
-    chunks = concatenateUint8Arrays(chunks, chunk_meta_bin);
+    chunks = efs.concatenateUint8Arrays(chunks, chunk_meta_bin);
   }
 
   const file_name = file.name;
@@ -232,7 +242,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
   await writer.ready;
   await writer.write(msg);
 
-  const resp_bin = await read_all(reader);
+  const resp_bin = await efs.read_all(reader);
   const resp = bfsp.UploadFileMetadataResp.decode(resp_bin);
 
   if (resp.err != undefined) {
@@ -265,16 +275,6 @@ export async function upload_file(_hook: ViewHook) {
   await show_files(null);
 }
 
-function concatenateUint8Arrays(array1: Uint8Array, array2: Uint8Array): Uint8Array {
-  const combinedLength = array1.length + array2.length;
-  const combinedArray = new Uint8Array(combinedLength);
-
-  combinedArray.set(array1);
-  combinedArray.set(array2, array1.length);
-
-  return combinedArray;
-}
-
 function get_auth(token: string): bfsp.FileServerMessage_Authentication{
   return bfsp.FileServerMessage_Authentication.create({
     token: token,
@@ -284,7 +284,7 @@ function get_auth(token: string): bfsp.FileServerMessage_Authentication{
 // prepend_len prepends the 4 byte little endian length of the message to the message
 function prepend_len(bytes: Uint8Array): Uint8Array {
   const len = numberToLittleEndianUint8Array(bytes.length);
-  return concatenateUint8Arrays(len, bytes);
+  return efs.concatenateUint8Arrays(len, bytes);
 
 }
 
@@ -319,7 +319,7 @@ async function show_files(_entry: any) {
 
   const reader = sock.readable.getReader();
 
-  const resp_bin = await read_all(reader);
+  const resp_bin = await efs.read_all(reader);
 
   await writer.close();
   await reader.cancel();
@@ -351,46 +351,6 @@ async function show_files(_entry: any) {
     div?.appendChild(p);
   });
 }
-
-async function read_all(reader: ReadableStreamDefaultReader<any>): Promise<Uint8Array> {
-  // read the first 4 bytes to get the length of the message, then read the rest based on that length
-  let total_data = new Uint8Array();
-  let result = await reader.read();
-
-  const len_bytes = result.value.slice(0, 4);
-  const total_len = new DataView(len_bytes.buffer).getUint32(0, true);
-  let total_data_read = result.value.length - 4;
-
-  total_data = concatenateUint8Arrays(total_data, result.value.slice(4));
-
-  while (total_data_read < total_len) {
-    const read_promise = new Promise(async (resolve, reject) => {
-      result = await reader.read();
-      if (result.done) {
-        console.log("done");
-        return resolve(null);
-      }
-
-      total_data_read += result.value.length;
-      total_data = concatenateUint8Arrays(total_data, result.value);
-
-      return resolve(null);
-    });
-    const timeout_promise = new Promise(async (resolve, reject) => {
-      setTimeout(() => {
-        return reject("Timeout reading data from stream");
-      }, 2000);
-    });
-
-
-    await Promise.race([read_promise, timeout_promise]);
-
-  }
-
-
-  return total_data;
-}
-
 
 async function set_encryption_key(entry: any) {
   const password = entry.detail.password as string;

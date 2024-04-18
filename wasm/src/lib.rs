@@ -36,6 +36,7 @@ pub fn create_file_metadata(
     key: &str,
     nonce: &[u8],
     chunk_bytes: &[u8],
+    directory: Option<String>,
 ) -> Result<Vec<u8>, String> {
     let enc_key = EncryptionKey::try_from(key).map_err(|err| err.to_string())?;
     let nonce = EncryptionNonce::try_from(nonce).map_err(|err| err.to_string())?;
@@ -80,6 +81,7 @@ pub fn create_file_metadata(
             .sum(),
         create_time: datetime!(2020-01-01 0:00),
         modification_time: datetime!(2020-01-01 0:00),
+        directory: directory.unwrap_or_else(|| "/".to_string()),
     };
     Ok(meta.encrypt_serialize(&enc_key, nonce)?)
 }
