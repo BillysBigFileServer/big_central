@@ -1,0 +1,14 @@
+<h1>Welcome Back!</h1>
+<form action="/users/login" id="login_form" method="POST">
+  <input type="email" id="email" name="email" class="w-full min-w-screen" />
+  <p class="text-red-500" id="email_valid_text"></p>
+
+  <input type="password" id="password" class="w-full min-w-screen" />
+  <p class="text-red-500" id="password_valid_text"></p>
+
+  <input type="hidden" name="dl_token" value={@dl_token} />
+  <input type="hidden" name="action" value="login" />
+  <input type="hidden" name="_csrf_token" value={@csrf_token} />
+
+  <input type="submit" value = "Login"/>
+</form>
