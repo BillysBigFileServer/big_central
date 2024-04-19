@@ -3,7 +3,6 @@ import {ViewHook} from "phoenix_live_view"
 import _ from "lodash"
 import * as efs from "./efs";
 import * as bfsp from "./bfsp";
-import * as sts from "streamsaver";
 
 const wasm = init("/wasm/wasm_bg.wasm");
 
@@ -45,17 +44,26 @@ async function download_file(e: any) {
     return obj;
   });
 
-  const name = f.file_name(file_metadata, file_nonce, enc_key);
-  const file_size = f.file_size(file_metadata, file_nonce, enc_key);
+  await save_file_in_memory(file_metadata, file_nonce, chunk_objs, enc_key, sock, writer, reader);
+}
 
-  const sorted_chunk_objs = _.sortBy(chunk_objs, (chunk_obj) => {
+// Firefox doesn't support the naive file system api, so we just save the file in memory and pray it fits
+// https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
+async function save_file_in_memory(file_metadata: Uint8Array, file_nonce: Uint8Array, chunk_objs: any[], enc_key: string, sock: WebTransportBidirectionalStream, writer: WritableStreamDefaultWriter, reader: ReadableStreamDefaultReader) {
+  await wasm;
+  const sorted_chunk_objs = _.sortBy(chunk_objs, (chunk_obj: any) => {
     return chunk_obj.indice;
   });
 
-  const file_stream = sts.createWriteStream(name, {
-    size: Number(file_size),
-  });
-  const file_writer = file_stream.getWriter();
+  const total_file_size: BigInt = f.file_size(file_metadata, file_nonce, enc_key);
+  let file_bin: Uint8Array = new Uint8Array();
+
+  const file_name = f.file_name(file_metadata, file_nonce, enc_key);
+
+  let file_progres_indicator = document.createElement("li");
+  file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
+
+  document.getElementById("status_progress")?.appendChild(file_progres_indicator);
 
   try {
     for (const chunk_obj of sorted_chunk_objs) {
@@ -76,9 +84,88 @@ async function download_file(e: any) {
         // TODO figure out why we randomly timeout. i might be working around bugs in the firefox impl
         try {
           await writer.ready;
+          await writer.write(msg_bytes);
+
+          // we need to make sure the data has been flushed
+          await writer.ready;
+          resp_bin = await efs.read_all(reader);
+        } catch (err) {
+          // TODO make this error a const
+          if (err == "Timeout reading data from stream") {
+            await writer.close();
+            await reader.cancel();
+
+            sock = await efs.connect();
+            reader = sock.readable.getReader();
+            writer = sock.writable.getWriter();
+
+            console.warn("Timeout reading data from stream; reconnecting");
+
+            continue;
+          } else {
+            throw new Error(String(err));
+          }
+        }
+      }
+
+      const resp = bfsp.DownloadChunkResp.decode(resp_bin);
+
+      if (resp.err != undefined) {
+        throw new Error("Error downloading chunk: " + resp.err);
+      }
+
+      const chunk_meta = resp.chunkData?.chunkMetadata!;
+      const chunk_meta_bin: Uint8Array = bfsp.ChunkMetadata.encode(chunk_meta).finish();
+      const decrypted_chunk = f.decrypt_chunk(resp.chunkData?.chunk!, chunk_meta_bin, enc_key);
+
+
+      // TODO check chunk hash
+      file_bin = efs.concatenateUint8Arrays(file_bin, decrypted_chunk);
+
+      const percentage = ((file_bin.length / Number(total_file_size)) * 100).toFixed(1);
+      file_progres_indicator.textContent = "Downloading " + file_name + ": " + percentage + "% (" + human_readable_size(file_bin.length) + ")";
+    }
+
+    let blob = new Blob([file_bin]);
+    let blob_url = URL.createObjectURL(blob);
+    let a = document.createElement("a");
+    a.href = blob_url;
+    a.download = f.file_name(file_metadata, file_nonce, enc_key);
+    a.click();
+    URL.revokeObjectURL(blob_url);
+
+    file_progres_indicator.remove();
+    await writer.close();
+    await reader.cancel();
+
+  } catch (err) {
+    console.error("Error downloading file: " + err);
+
+    file_progres_indicator.remove();
+    await writer.close();
+    await reader.cancel();
+  }
+}
+
+function human_readable_size(size: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (size > 1024) {
+    size /= 1024;
+    i += 1;
+  }
+
+  return size.toFixed(1) + " " + units[i];
+}
+
+async function save_file_nfs() {
+  // TODO
+  /*
+  while (resp_bin.length == 0) {
+        // TODO figure out why we randomly timeout. i might be working around bugs in the firefox impl
+        try {
+          await writer.ready;
           console.log("Writing message");
-
-
           await writer.write(msg_bytes);
 
           // we need to make sure the data has been flushed
@@ -104,39 +191,7 @@ async function download_file(e: any) {
           }
         }
       }
-
-      const resp = bfsp.DownloadChunkResp.decode(resp_bin);
-
-      if (resp.err != undefined) {
-        console.error(resp.err);
-        return;
-      }
-
-      const chunk_meta = resp.chunkData?.chunkMetadata!;
-      const chunk_meta_bin: Uint8Array = bfsp.ChunkMetadata.encode(chunk_meta).finish();
-      const decrypted_chunk = f.decrypt_chunk(resp.chunkData?.chunk!, chunk_meta_bin, enc_key);
-
-      console.log("Writing chunk " + chunk_meta.id + " to file");
-
-      // TODO check chunk hash
-      await file_writer.write(decrypted_chunk);
-    }
-
-    console.log("Closing file writer");
-    await file_writer.close();
-
-    await writer.close();
-    await reader.cancel();
-
-  } catch (err) {
-    console.log("Error downloading file: " + err);
-    await file_writer.abort(err);
-
-    await writer.close();
-    await reader.cancel();
-  }
-
-
+      */
 }
 
 export async function upload_directory(_hook: ViewHook) {
@@ -174,6 +229,14 @@ export async function upload_file_inner(file: File, enc_key: string) {
 
   const reader = sock.readable.getReader();
   const writer = sock.writable.getWriter();
+
+  const file_name = file.name;
+
+  let file_progres_indicator = document.createElement("li");
+  file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
+
+  document.getElementById("status_progress")?.appendChild(file_progres_indicator);
+
 
   // TODO: we need to parallelize this
   for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
@@ -220,9 +283,10 @@ export async function upload_file_inner(file: File, enc_key: string) {
     }
 
     chunks = efs.concatenateUint8Arrays(chunks, chunk_meta_bin);
+    const percentage = ((offset / file.size) * 100).toFixed(1);
+    file_progres_indicator.textContent = "Uploading " + file_name + ": " + percentage + "% (" + human_readable_size(offset) + ")";
   }
 
-  const file_name = file.name;
   // We can't pass an array of arrays to Rust, so we just flatten it
   const metadata: Uint8Array = f.create_file_metadata(file_name, enc_key, nonce, chunks);
 
@@ -249,6 +313,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
     throw new Error("Error uploading file metadata: " + resp.err);
   }
 
+  file_progres_indicator.remove();
   console.log("Uploaded file " + file.name);
 
   console.log("Closing writer");

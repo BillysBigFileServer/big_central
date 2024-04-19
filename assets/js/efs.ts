@@ -5,22 +5,33 @@ export async function connect(): Promise<WebTransportBidirectionalStream> {
     for (;;) {
         try {
             console.log("connecting to efs");
-            transport = new WebTransport("https://localhost:9999/efs", {
-                allowPooling: true,
-                congestionControl: "throughput",
-            });
+            if (transport == null) {
+              // check if the browser is firefox, since only it supports the options we're giving (for now)
+              if (navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Gecko")) {
+                transport = new WebTransport("https://localhost:9999/efs", {
+                    allowPooling: true,
+                    congestionControl: "throughput",
+                });
+              } else {
+                transport = new WebTransport("https://localhost:9999/efs");
+              }
+            }
 
-            console.log("waiting for transport to be ready");
             await transport.ready;
+            console.log("connected to efs");
 
-            console.log("creating stream");
             let stream = await transport.createBidirectionalStream();
             console.log("stream created; returning");
             return stream;
 
-        } catch (e) {
-            console.log("failed to connect to efs, retrying");
-            await new Promise(r => setTimeout(r, 10));
+        } catch (e: any) {
+          if (e.message == "WebTransport connection rejected") {
+            transport = null;
+          }
+
+          console.warn("failed to connect to efs: " + e + ", retrying");
+          // Retry after a second
+          await new Promise(r => setTimeout(r, 100));
         }
     }
 }
@@ -37,7 +48,7 @@ export async function read_all(reader: ReadableStreamDefaultReader<any>): Promis
   total_data = concatenateUint8Arrays(total_data, result.value.slice(4));
 
   while (total_data_read < total_len) {
-    const read_promise = new Promise(async (resolve, reject) => {
+    const read_promise = new Promise(async (resolve, _reject) => {
       result = await reader.read();
       if (result.done) {
         console.log("done");
@@ -49,7 +60,7 @@ export async function read_all(reader: ReadableStreamDefaultReader<any>): Promis
 
       return resolve(null);
     });
-    const timeout_promise = new Promise(async (resolve, reject) => {
+    const timeout_promise = new Promise(async (_resolve, reject) => {
       setTimeout(() => {
         return reject("Timeout reading data from stream");
       }, 2000);
