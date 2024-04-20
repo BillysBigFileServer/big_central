@@ -63,7 +63,7 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_nonce: Uint8A
   let file_progres_indicator = document.createElement("li");
   file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
 
-  document.getElementById("status_progress")?.appendChild(file_progres_indicator);
+  document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
   try {
     for (const chunk_obj of sorted_chunk_objs) {
@@ -235,7 +235,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
   let file_progres_indicator = document.createElement("li");
   file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
 
-  document.getElementById("status_progress")?.appendChild(file_progres_indicator);
+  document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
 
   // TODO: we need to parallelize this
@@ -283,7 +283,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
     }
 
     chunks = efs.concatenateUint8Arrays(chunks, chunk_meta_bin);
-    const percentage = ((offset / file.size) * 100).toFixed(1);
+    const percentage = ((offset / file.size) * 100).toFixed(2);
     file_progres_indicator.textContent = "Uploading " + file_name + ": " + percentage + "% (" + human_readable_size(offset) + ")";
   }
 
@@ -405,15 +405,62 @@ async function show_files(_entry: any) {
 
   _.forEach(metas, (meta: bfsp.EncryptedFileMetadata, id: number) => {
     let name = f.file_name(meta.metadata, meta.nonce, enc_key!);
+    let size = f.file_size(meta.metadata, meta.nonce, enc_key!);
 
-    let p = document.createElement("p");
-    p.id = id.toString();
-    p.textContent = name;
-    p.classList.add("outline");
-    p.classList.add("outline-offset-2");
-    p.addEventListener("click", download_file);
+    // Create the outer div element
+    const outerDiv = document.createElement('div');
+    outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer'); // Add 'flex-grow' class
 
-    div?.appendChild(p);
+    outerDiv.addEventListener('click', () => {
+      download_file({ target: { id: id } });
+    });
+
+
+    // Create the flex container div
+    const flexContainerDiv = document.createElement('div');
+    flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
+
+    // Create the inner flex container div
+    const innerFlexDiv = document.createElement('div');
+    innerFlexDiv.classList.add('flex', 'items-center', 'space-x-4');
+
+    // Create the heading element
+    const heading = document.createElement('h2');
+    heading.textContent = name;
+    heading.classList.add('text-sm', 'font-semibold');
+
+    // Create the button element
+    const button = document.createElement('button');
+    button.classList.add('text-gray-500', 'hover:text-gray-700');
+
+    // Append the heading to the inner flex container div
+    innerFlexDiv.appendChild(heading);
+
+    // Append the inner flex container div and the button to the flex container div
+    flexContainerDiv.appendChild(innerFlexDiv);
+    flexContainerDiv.appendChild(button);
+
+    // Create the paragraphs
+    const paragraphs = [
+        'File size: ' + human_readable_size(Number(size)),
+        // TODO
+        'Created: April 19, 2024',
+        'Last modified: April 19, 2024'
+    ];
+
+    // Create and append the paragraphs to the outer div
+    paragraphs.forEach(text => {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = text;
+        paragraph.classList.add('text-sm', 'text-gray-600');
+        outerDiv.appendChild(paragraph);
+    });
+
+    // Append the flex container div to the outer div
+    outerDiv.appendChild(flexContainerDiv);
+
+    // Append the outer div to the files div
+    div?.appendChild(outerDiv);
   });
 }
 

@@ -1,22 +1,20 @@
 <input type="hidden" id="token" value={@token} />
-<div id="default-sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0" aria-label="Sidebar">
-   <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800">
-      <ul class="space-y-4 font-medium">
-         <li>
-           <label for="upload_file_button"  class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group ms-3">Upload file</label>
-           <input type="file" id="upload_file_button" phx-hook="UploadFileHook" style="visibility:hidden;"  />
-         </li>
-         <li>
-           <label for="upload_directory_button"  class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group ms-3">Upload directory</label>
-           <input type="file" id="upload_directory_button" phx-hook="UploadDirectoryHook" style="visibility:hidden;" webkitdirectory multiple />
-        </li>
-      </ul>
-   </div>
-</div>
 
-<div id="files" class="space-y-4 items-center">
-</div>
+      <div class="flex flex-wrap gap-2 flex-grow" id="files" />
 
-<div class="absolute bottom-0 content-center">
-    <ul id="status_progress" class="space-y-4 font-small text-center"></ul>
+      <div class="fixed top-16 right-0 bg-white p-4 border border-gray-300 rounded-lg shadow-lg">
+        <ul id="progress-list">
+          </ul>
+      </div>
+
+
+<div class="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-150 justify-center flex">
+    <div>
+        <label for="upload_file_button">Upload file</label>
+        <input type="file" id="upload_file_button" phx-hook="UploadFileHook" style="visibility:hidden;" />
+    </div>
+    <div>
+        <label for="upload_directory_button">Upload directory</label>
+        <input type="file" id="upload_directory_button" phx-hook="UploadDirectoryHook" style="visibility:hidden;" webkitdirectory multiple />
+    </div>
 </div>
