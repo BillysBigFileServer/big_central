@@ -226,10 +226,10 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
 
   let chunks: Uint8Array = new Uint8Array();
 
-  const sock = await efs.connect();
+  let sock = await efs.connect();
 
-  const reader = sock.readable.getReader();
-  const writer = sock.writable.getWriter();
+  let reader = sock.readable.getReader();
+  let writer = sock.writable.getWriter();
 
   const file_name = file.name;
 
@@ -270,11 +270,25 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
     }), get_token());
 
 
-    await writer.ready;
-    await writer.write(msg);
+    let result_bin: Uint8Array = new Uint8Array();
+    for (let retries = 0; retries < 3; retries += 1) {
+      try {
+        await writer.ready;
+        await writer.write(msg);
 
-    // TODO: we need to handle errors here
-    const result_bin = await efs.read_all(reader);
+        // TODO: we need to handle errors here
+        result_bin = await efs.read_all(reader);
+      } catch(e) {
+        sock = await efs.connect();
+        writer = sock.writable.getWriter();
+        reader = sock.readable.getReader();
+
+        console.warn("Error uploading chunk: " + e + ", retrying");
+        if (retries == 2) {
+          throw new Error("Failed to upload chunk: " + e);
+        }
+      }
+    }
     const result = bfsp.UploadChunkResp.decode(result_bin);
 
     if (result.err != undefined) {
