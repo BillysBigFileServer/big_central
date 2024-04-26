@@ -5,6 +5,8 @@ import * as efs from "./efs";
 import * as bfsp from "./bfsp";
 
 const wasm = init("/wasm/wasm_bg.wasm");
+// TODO remove this when we can resume file uploads
+garbage_collect(localStorage.getItem("encryption_key")!);
 
 async function download_file(e: any) {
   let file_id: string = e.target.id;
@@ -219,6 +221,85 @@ export async function upload_directory(_hook: ViewHook) {
   await show_files(null);
 }
 
+// Deletes all chunks that aren't attached to a file metadata
+export async function garbage_collect(master_enc_key: string) {
+  await wasm;
+
+  let sock = await efs.connect();
+
+  let reader = sock.readable.getReader();
+  let writer = sock.writable.getWriter();
+
+  const file_meta_query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
+    ids: [],
+  });
+  const file_meta_msg = bfsp.FileServerMessage.create({
+    listFileMetadataQuery: file_meta_query,
+  });
+  const file_meta_msg_bin = prepMessage(file_meta_msg, get_token());
+
+  await writer.ready;
+  await writer.write(file_meta_msg_bin);
+
+  const file_meta_resp_bin = await efs.read_all(reader);
+  const file_meta_resp = bfsp.ListFileMetadataResp.decode(file_meta_resp_bin);
+  if (file_meta_resp.err != undefined) {
+    throw new Error("Error listing file metadata: " + file_meta_resp.err);
+  }
+
+  const good_chunk_ids: string[] = _.flatMap(file_meta_resp.metadatas?.metadatas!, (file_meta: bfsp.EncryptedFileMetadata, file_id: string) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
+    const chunks = f.file_chunks(file_meta.metadata, file_id, file_enc_key);
+    return _.map(chunks, (chunk: string) => {
+      return JSON.parse(chunk).id;
+    });
+  });
+
+  const chunk_query = bfsp.FileServerMessage_ListChunkMetadataQuery.create({
+    ids: [],
+  });
+  const chunk_msg = bfsp.FileServerMessage.create({
+    listChunkMetadataQuery: chunk_query,
+  });
+  const chunk_msg_bin = prepMessage(chunk_msg, get_token());
+
+  await writer.ready;
+  await writer.write(chunk_msg_bin);
+
+  const chunk_resp_bin = await efs.read_all(reader);
+  const chunk_resp = bfsp.ListChunkMetadataResp.decode(chunk_resp_bin);
+  if (chunk_resp.err != undefined) {
+    throw new Error("Error listing uploaded chunks: " + chunk_resp.err);
+  }
+  const all_chunks = _.map(chunk_resp.metadatas?.metadatas, (chunk) => {
+    return chunk.id;
+  });
+
+  const chunks_to_delete: string[] = _.difference(all_chunks, good_chunk_ids);
+  console.log("Deleting chunks: " + chunks_to_delete);
+
+  const chunk_delete_query = bfsp.FileServerMessage_DeleteChunksQuery.create({
+    chunkIds: chunks_to_delete,
+  });
+  const chunk_delete_msg = bfsp.FileServerMessage.create({
+    deleteChunksQuery: chunk_delete_query,
+  });
+  const chunk_delete_msg_bin = prepMessage(chunk_delete_msg, get_token());
+  await writer.ready;
+  await writer.write(chunk_delete_msg_bin);
+
+  const chunk_delete_resp_bin = await efs.read_all(reader);
+  const chunk_delete_resp = bfsp.DeleteChunksResp.decode(chunk_delete_resp_bin);
+  if (chunk_delete_resp.err != undefined) {
+    throw new Error("Error deleting chunks: " + chunk_delete_resp);
+  }
+
+  await writer.close();
+  await reader.cancel();
+
+  console.log("Deleted " + chunks_to_delete.length + " chunks");
+}
+
 export async function upload_file_inner(file: File, master_enc_key: string) {
   await wasm;
   const file_id = f.create_file_id();
@@ -234,7 +315,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
   const file_name = file.name;
 
   let file_progres_indicator = document.createElement("li");
-  file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
+  file_progres_indicator.textContent = "Uploading " + file_name + ": 0.0% (" + 0 + " bytes)";
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 

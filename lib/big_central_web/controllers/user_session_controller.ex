@@ -90,7 +90,7 @@ defmodule BigCentralWeb.UserSessionController do
   def delete(conn, params) do
     redirect_page =
       case params["redirect_to"] do
-        nil -> "/"
+        nil -> "/login"
         page -> page
       end
 

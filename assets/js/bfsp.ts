@@ -18,6 +18,7 @@ export interface FileServerMessage {
   uploadFileMetadata?: FileServerMessage_UploadFileMetadata | undefined;
   downloadFileMetadataQuery?: FileServerMessage_DownloadFileMetadataQuery | undefined;
   listFileMetadataQuery?: FileServerMessage_ListFileMetadataQuery | undefined;
+  listChunkMetadataQuery?: FileServerMessage_ListChunkMetadataQuery | undefined;
 }
 
 export interface FileServerMessage_UploadChunk {
@@ -27,6 +28,10 @@ export interface FileServerMessage_UploadChunk {
 
 export interface FileServerMessage_ChunksUploadedQuery {
   chunkIds: string[];
+}
+
+export interface FileServerMessage_ListChunkMetadataQuery {
+  ids: string[];
 }
 
 export interface FileServerMessage_DownloadChunkQuery {
@@ -106,6 +111,20 @@ export interface ListFileMetadataResp_FileMetadatas {
 export interface ListFileMetadataResp_FileMetadatas_MetadatasEntry {
   key: string;
   value: EncryptedFileMetadata | undefined;
+}
+
+export interface ListChunkMetadataResp {
+  metadatas?: ListChunkMetadataResp_ChunkMetadatas | undefined;
+  err?: string | undefined;
+}
+
+export interface ListChunkMetadataResp_ChunkMetadatas {
+  metadatas: { [key: string]: ChunkMetadata };
+}
+
+export interface ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+  key: string;
+  value: ChunkMetadata | undefined;
 }
 
 export interface ChunkMetadata {
@@ -200,6 +219,7 @@ function createBaseFileServerMessage(): FileServerMessage {
     uploadFileMetadata: undefined,
     downloadFileMetadataQuery: undefined,
     listFileMetadataQuery: undefined,
+    listChunkMetadataQuery: undefined,
   };
 }
 
@@ -229,6 +249,10 @@ export const FileServerMessage = {
     }
     if (message.listFileMetadataQuery !== undefined) {
       FileServerMessage_ListFileMetadataQuery.encode(message.listFileMetadataQuery, writer.uint32(66).fork()).ldelim();
+    }
+    if (message.listChunkMetadataQuery !== undefined) {
+      FileServerMessage_ListChunkMetadataQuery.encode(message.listChunkMetadataQuery, writer.uint32(74).fork())
+        .ldelim();
     }
     return writer;
   },
@@ -299,6 +323,13 @@ export const FileServerMessage = {
 
           message.listFileMetadataQuery = FileServerMessage_ListFileMetadataQuery.decode(reader, reader.uint32());
           continue;
+        case 9:
+          if (tag !== 74) {
+            break;
+          }
+
+          message.listChunkMetadataQuery = FileServerMessage_ListChunkMetadataQuery.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -330,6 +361,9 @@ export const FileServerMessage = {
       listFileMetadataQuery: isSet(object.listFileMetadataQuery)
         ? FileServerMessage_ListFileMetadataQuery.fromJSON(object.listFileMetadataQuery)
         : undefined,
+      listChunkMetadataQuery: isSet(object.listChunkMetadataQuery)
+        ? FileServerMessage_ListChunkMetadataQuery.fromJSON(object.listChunkMetadataQuery)
+        : undefined,
     };
   },
 
@@ -360,6 +394,9 @@ export const FileServerMessage = {
     }
     if (message.listFileMetadataQuery !== undefined) {
       obj.listFileMetadataQuery = FileServerMessage_ListFileMetadataQuery.toJSON(message.listFileMetadataQuery);
+    }
+    if (message.listChunkMetadataQuery !== undefined) {
+      obj.listChunkMetadataQuery = FileServerMessage_ListChunkMetadataQuery.toJSON(message.listChunkMetadataQuery);
     }
     return obj;
   },
@@ -394,6 +431,10 @@ export const FileServerMessage = {
     message.listFileMetadataQuery =
       (object.listFileMetadataQuery !== undefined && object.listFileMetadataQuery !== null)
         ? FileServerMessage_ListFileMetadataQuery.fromPartial(object.listFileMetadataQuery)
+        : undefined;
+    message.listChunkMetadataQuery =
+      (object.listChunkMetadataQuery !== undefined && object.listChunkMetadataQuery !== null)
+        ? FileServerMessage_ListChunkMetadataQuery.fromPartial(object.listChunkMetadataQuery)
         : undefined;
     return message;
   },
@@ -536,6 +577,67 @@ export const FileServerMessage_ChunksUploadedQuery = {
   ): FileServerMessage_ChunksUploadedQuery {
     const message = createBaseFileServerMessage_ChunksUploadedQuery();
     message.chunkIds = object.chunkIds?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseFileServerMessage_ListChunkMetadataQuery(): FileServerMessage_ListChunkMetadataQuery {
+  return { ids: [] };
+}
+
+export const FileServerMessage_ListChunkMetadataQuery = {
+  encode(message: FileServerMessage_ListChunkMetadataQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.ids) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): FileServerMessage_ListChunkMetadataQuery {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFileServerMessage_ListChunkMetadataQuery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ids.push(reader.string());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FileServerMessage_ListChunkMetadataQuery {
+    return { ids: globalThis.Array.isArray(object?.ids) ? object.ids.map((e: any) => globalThis.String(e)) : [] };
+  },
+
+  toJSON(message: FileServerMessage_ListChunkMetadataQuery): unknown {
+    const obj: any = {};
+    if (message.ids?.length) {
+      obj.ids = message.ids;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FileServerMessage_ListChunkMetadataQuery>, I>>(
+    base?: I,
+  ): FileServerMessage_ListChunkMetadataQuery {
+    return FileServerMessage_ListChunkMetadataQuery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FileServerMessage_ListChunkMetadataQuery>, I>>(
+    object: I,
+  ): FileServerMessage_ListChunkMetadataQuery {
+    const message = createBaseFileServerMessage_ListChunkMetadataQuery();
+    message.ids = object.ids?.map((e) => e) || [];
     return message;
   },
 };
@@ -1776,6 +1878,251 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
     message.key = object.key ?? "";
     message.value = (object.value !== undefined && object.value !== null)
       ? EncryptedFileMetadata.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseListChunkMetadataResp(): ListChunkMetadataResp {
+  return { metadatas: undefined, err: undefined };
+}
+
+export const ListChunkMetadataResp = {
+  encode(message: ListChunkMetadataResp, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metadatas !== undefined) {
+      ListChunkMetadataResp_ChunkMetadatas.encode(message.metadatas, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.err !== undefined) {
+      writer.uint32(18).string(message.err);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ListChunkMetadataResp {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListChunkMetadataResp();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.metadatas = ListChunkMetadataResp_ChunkMetadatas.decode(reader, reader.uint32());
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.err = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListChunkMetadataResp {
+    return {
+      metadatas: isSet(object.metadatas) ? ListChunkMetadataResp_ChunkMetadatas.fromJSON(object.metadatas) : undefined,
+      err: isSet(object.err) ? globalThis.String(object.err) : undefined,
+    };
+  },
+
+  toJSON(message: ListChunkMetadataResp): unknown {
+    const obj: any = {};
+    if (message.metadatas !== undefined) {
+      obj.metadatas = ListChunkMetadataResp_ChunkMetadatas.toJSON(message.metadatas);
+    }
+    if (message.err !== undefined) {
+      obj.err = message.err;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListChunkMetadataResp>, I>>(base?: I): ListChunkMetadataResp {
+    return ListChunkMetadataResp.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListChunkMetadataResp>, I>>(object: I): ListChunkMetadataResp {
+    const message = createBaseListChunkMetadataResp();
+    message.metadatas = (object.metadatas !== undefined && object.metadatas !== null)
+      ? ListChunkMetadataResp_ChunkMetadatas.fromPartial(object.metadatas)
+      : undefined;
+    message.err = object.err ?? undefined;
+    return message;
+  },
+};
+
+function createBaseListChunkMetadataResp_ChunkMetadatas(): ListChunkMetadataResp_ChunkMetadatas {
+  return { metadatas: {} };
+}
+
+export const ListChunkMetadataResp_ChunkMetadatas = {
+  encode(message: ListChunkMetadataResp_ChunkMetadatas, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    Object.entries(message.metadatas).forEach(([key, value]) => {
+      ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry.encode({ key: key as any, value }, writer.uint32(10).fork())
+        .ldelim();
+    });
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ListChunkMetadataResp_ChunkMetadatas {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListChunkMetadataResp_ChunkMetadatas();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          const entry1 = ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry.decode(reader, reader.uint32());
+          if (entry1.value !== undefined) {
+            message.metadatas[entry1.key] = entry1.value;
+          }
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListChunkMetadataResp_ChunkMetadatas {
+    return {
+      metadatas: isObject(object.metadatas)
+        ? Object.entries(object.metadatas).reduce<{ [key: string]: ChunkMetadata }>((acc, [key, value]) => {
+          acc[key] = ChunkMetadata.fromJSON(value);
+          return acc;
+        }, {})
+        : {},
+    };
+  },
+
+  toJSON(message: ListChunkMetadataResp_ChunkMetadatas): unknown {
+    const obj: any = {};
+    if (message.metadatas) {
+      const entries = Object.entries(message.metadatas);
+      if (entries.length > 0) {
+        obj.metadatas = {};
+        entries.forEach(([k, v]) => {
+          obj.metadatas[k] = ChunkMetadata.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListChunkMetadataResp_ChunkMetadatas>, I>>(
+    base?: I,
+  ): ListChunkMetadataResp_ChunkMetadatas {
+    return ListChunkMetadataResp_ChunkMetadatas.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListChunkMetadataResp_ChunkMetadatas>, I>>(
+    object: I,
+  ): ListChunkMetadataResp_ChunkMetadatas {
+    const message = createBaseListChunkMetadataResp_ChunkMetadatas();
+    message.metadatas = Object.entries(object.metadatas ?? {}).reduce<{ [key: string]: ChunkMetadata }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = ChunkMetadata.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseListChunkMetadataResp_ChunkMetadatas_MetadatasEntry(): ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+  return { key: "", value: undefined };
+}
+
+export const ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry = {
+  encode(
+    message: ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      ChunkMetadata.encode(message.value, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListChunkMetadataResp_ChunkMetadatas_MetadatasEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = ChunkMetadata.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? ChunkMetadata.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = ChunkMetadata.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry>, I>>(
+    base?: I,
+  ): ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+    return ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry>, I>>(
+    object: I,
+  ): ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
+    const message = createBaseListChunkMetadataResp_ChunkMetadatas_MetadatasEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? ChunkMetadata.fromPartial(object.value)
       : undefined;
     return message;
   },
