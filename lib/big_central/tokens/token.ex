@@ -25,8 +25,12 @@ defmodule BigCentral.Token do
       {"rights", "set", ["read", "write", "query"]}
     ]
 
+    token_private_key =
+      System.get_env("TOKEN_PRIVATE_KEY") ||
+        "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+
     t =
-      Application.fetch_env!(:big_central, :token_private_key)
+      token_private_key
       |> Biscuit.generate(facts)
 
     Tokens.create_token(%{token: t, user_id: user.id, valid: true})

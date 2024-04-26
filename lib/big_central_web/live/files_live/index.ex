@@ -16,8 +16,11 @@ defmodule BigCentralWeb.FilesLive.Index do
         |> assign(email: email)
         |> push_event("show-files", %{})
       else
-        {:error, :nil_email} -> socket |> assign(token: nil) |> assign(email: nil)
-        {:error, error} -> socket |> put_flash(:error, error) |> redirect(to: ~p"/users/logout")
+        {:error, :nil_email} ->
+          socket |> put_flash(:error, "Invalid email") |> redirect(to: ~p"/users/logout")
+
+        {:error, error} ->
+          socket |> put_flash(:error, error)
       end
 
     {:ok, socket}

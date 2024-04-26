@@ -63,9 +63,6 @@ defmodule BigCentral.Users do
         {:error, :not_found}
 
       user ->
-        IO.inspect(user)
-        IO.inspect(password)
-
         case user.password == password do
           true -> {:ok, user}
           false -> {:error, :invalid_password}

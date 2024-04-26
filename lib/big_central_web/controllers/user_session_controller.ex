@@ -28,7 +28,7 @@ defmodule BigCentralWeb.UserSessionController do
 
     redirect_to =
       case dl_token == "" do
-        true -> ~p"/tokens"
+        true -> ~p"/files"
         false -> ~p"/auth_app_success"
       end
 
@@ -61,7 +61,7 @@ defmodule BigCentralWeb.UserSessionController do
 
         redirect_to =
           case dl_token == "" do
-            true -> ~p"/tokens"
+            true -> ~p"/files"
             false -> ~p"/auth_app_success"
           end
 
