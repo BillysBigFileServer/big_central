@@ -7,7 +7,7 @@ import * as bfsp from "./bfsp";
 const wasm = init("/wasm/wasm_bg.wasm");
 
 async function download_file(e: any) {
-  let file_id: number = parseInt(e.target.id);
+  let file_id: string = e.target.id;
 
   const query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
     id: file_id,
@@ -32,33 +32,33 @@ async function download_file(e: any) {
     return;
   }
 
-  const enc_key  = localStorage.getItem("encryption_key")!;
+  const master_enc_key  = localStorage.getItem("encryption_key")!;
 
   const file_metadata = resp.encryptedFileMetadata?.metadata!;
-  const file_nonce = resp.encryptedFileMetadata?.nonce!;
 
   await wasm;
-  const chunks = f.file_chunks(file_metadata, file_nonce, enc_key);
+  const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
+  const chunks = f.file_chunks(file_metadata, file_id, file_enc_key);
   const chunk_objs  = _.map(chunks, (chunk: string) => {
     const obj = JSON.parse(chunk);
     return obj;
   });
 
-  await save_file_in_memory(file_metadata, file_nonce, chunk_objs, enc_key, sock, writer, reader);
+  await save_file_in_memory(file_metadata, file_id, chunk_objs, file_enc_key, sock, writer, reader);
 }
 
 // Firefox doesn't support the naive file system api, so we just save the file in memory and pray it fits
 // https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
-async function save_file_in_memory(file_metadata: Uint8Array, file_nonce: Uint8Array, chunk_objs: any[], enc_key: string, sock: WebTransportBidirectionalStream, writer: WritableStreamDefaultWriter, reader: ReadableStreamDefaultReader) {
+async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, chunk_objs: any[], enc_key: string, sock: WebTransportBidirectionalStream, writer: WritableStreamDefaultWriter, reader: ReadableStreamDefaultReader) {
   await wasm;
   const sorted_chunk_objs = _.sortBy(chunk_objs, (chunk_obj: any) => {
     return chunk_obj.indice;
   });
 
-  const total_file_size: BigInt = f.file_size(file_metadata, file_nonce, enc_key);
+  const total_file_size: BigInt = f.file_size(file_metadata, file_id, enc_key);
   let file_bin: Uint8Array = new Uint8Array();
 
-  const file_name = f.file_name(file_metadata, file_nonce, enc_key);
+  const file_name = f.file_name(file_metadata, file_id, enc_key);
 
   let file_progres_indicator = document.createElement("li");
   file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
@@ -130,7 +130,7 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_nonce: Uint8A
     let blob_url = URL.createObjectURL(blob);
     let a = document.createElement("a");
     a.href = blob_url;
-    a.download = f.file_name(file_metadata, file_nonce, enc_key);
+    a.download = f.file_name(file_metadata, file_id, enc_key);
     a.click();
     URL.revokeObjectURL(blob_url);
 
@@ -219,9 +219,10 @@ export async function upload_directory(_hook: ViewHook) {
   await show_files(null);
 }
 
-export async function upload_file_inner(file: File, enc_key: string) {
+export async function upload_file_inner(file: File, master_enc_key: string) {
   await wasm;
-  const nonce = f.create_encryption_nonce();
+  const file_id = f.create_file_id();
+  const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
 
   let chunks: Uint8Array = new Uint8Array();
 
@@ -237,7 +238,6 @@ export async function upload_file_inner(file: File, enc_key: string) {
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
-
   // TODO: we need to parallelize this
   for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
     const slice = await file!.slice(offset, offset + 1024 * 1024).arrayBuffer();
@@ -249,7 +249,6 @@ export async function upload_file_inner(file: File, enc_key: string) {
     const chunk_len = view.length;
     const chunk_nonce = f.chunk_nonce();
 
-
     // Log the percentage of the file that has been read, like "10%"
     const indice = offset / (1024 * 1024);
     const chunk_meta = bfsp.ChunkMetadata.create({
@@ -260,7 +259,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
       nonce: chunk_nonce,
     });
     const chunk_meta_bin = prepend_len(bfsp.ChunkMetadata.encode(chunk_meta).finish());
-    const encrypted_chunk = f.encrypt_chunk(view, chunk_meta_bin, enc_key);
+    const encrypted_chunk = f.encrypt_chunk(view, chunk_meta_bin, file_enc_key);
 
     const chunk_metadata_msg = bfsp.FileServerMessage_UploadChunk.create({
       chunkMetadata: chunk_meta,
@@ -288,12 +287,12 @@ export async function upload_file_inner(file: File, enc_key: string) {
   }
 
   // We can't pass an array of arrays to Rust, so we just flatten it
-  const metadata: Uint8Array = f.create_file_metadata(file_name, enc_key, nonce, chunks);
+  const metadata: Uint8Array = f.create_file_metadata(file_name, file_enc_key, file_id, chunks);
 
   // Send the metadata up to elixir
   const file_metadata_msg = bfsp.FileServerMessage_UploadFileMetadata.create({
     encryptedFileMetadata: bfsp.EncryptedFileMetadata.create({
-      nonce: nonce,
+      id: file_id,
       metadata: metadata,
     })
   });
@@ -325,7 +324,7 @@ export async function upload_file_inner(file: File, enc_key: string) {
 
 export async function upload_file(_hook: ViewHook) {
   console.log("Recording performance");
-  const enc_key  = localStorage.getItem("encryption_key")!;
+  const master_enc_key  = localStorage.getItem("encryption_key")!;
 
   // this is fine ;)
   const file_button: any = document.getElementById("upload_file_button");
@@ -336,7 +335,7 @@ export async function upload_file(_hook: ViewHook) {
     return;
   }
 
-  await upload_file_inner(file, enc_key);
+  await upload_file_inner(file, master_enc_key);
   await show_files(null);
 }
 
@@ -395,24 +394,25 @@ async function show_files(_entry: any) {
   const metas: any = resp.metadatas?.metadatas!;
   await wasm;
 
-  const enc_key = localStorage.getItem("encryption_key");
-  if (enc_key == null) {
+  const master_enc_key = localStorage.getItem("encryption_key");
+  if (master_enc_key == null) {
     window.location.replace("/login");
   }
 
   let div = document.getElementById("files");
   div?.replaceChildren();
 
-  _.forEach(metas, (meta: bfsp.EncryptedFileMetadata, id: number) => {
-    let name = f.file_name(meta.metadata, meta.nonce, enc_key!);
-    let size = f.file_size(meta.metadata, meta.nonce, enc_key!);
+  _.forEach(metas, (file_meta: bfsp.EncryptedFileMetadata, file_id: string) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key!, file_id);
+    let name = f.file_name(file_meta.metadata, file_meta.id, file_enc_key!);
+    let size = f.file_size(file_meta.metadata, file_meta.id, file_enc_key!);
 
     // Create the outer div element
     const outerDiv = document.createElement('div');
     outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer'); // Add 'flex-grow' class
 
     outerDiv.addEventListener('click', () => {
-      download_file({ target: { id: id } });
+      download_file({ target: { id: file_id } });
     });
 
 

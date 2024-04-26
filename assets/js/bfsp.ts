@@ -6,7 +6,7 @@ export const protobufPackage = "bfsp.files";
 
 export interface EncryptedFileMetadata {
   metadata: Uint8Array;
-  nonce: Uint8Array;
+  id: string;
 }
 
 export interface FileServerMessage {
@@ -46,11 +46,11 @@ export interface FileServerMessage_UploadFileMetadata {
 }
 
 export interface FileServerMessage_DownloadFileMetadataQuery {
-  id: number;
+  id: string;
 }
 
 export interface FileServerMessage_ListFileMetadataQuery {
-  ids: number[];
+  ids: string[];
 }
 
 export interface UploadChunkResp {
@@ -100,11 +100,11 @@ export interface ListFileMetadataResp {
 }
 
 export interface ListFileMetadataResp_FileMetadatas {
-  metadatas: { [key: number]: EncryptedFileMetadata };
+  metadatas: { [key: string]: EncryptedFileMetadata };
 }
 
 export interface ListFileMetadataResp_FileMetadatas_MetadatasEntry {
-  key: number;
+  key: string;
   value: EncryptedFileMetadata | undefined;
 }
 
@@ -117,7 +117,7 @@ export interface ChunkMetadata {
 }
 
 function createBaseEncryptedFileMetadata(): EncryptedFileMetadata {
-  return { metadata: new Uint8Array(0), nonce: new Uint8Array(0) };
+  return { metadata: new Uint8Array(0), id: "" };
 }
 
 export const EncryptedFileMetadata = {
@@ -125,8 +125,8 @@ export const EncryptedFileMetadata = {
     if (message.metadata.length !== 0) {
       writer.uint32(10).bytes(message.metadata);
     }
-    if (message.nonce.length !== 0) {
-      writer.uint32(18).bytes(message.nonce);
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
     }
     return writer;
   },
@@ -150,7 +150,7 @@ export const EncryptedFileMetadata = {
             break;
           }
 
-          message.nonce = reader.bytes();
+          message.id = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -164,7 +164,7 @@ export const EncryptedFileMetadata = {
   fromJSON(object: any): EncryptedFileMetadata {
     return {
       metadata: isSet(object.metadata) ? bytesFromBase64(object.metadata) : new Uint8Array(0),
-      nonce: isSet(object.nonce) ? bytesFromBase64(object.nonce) : new Uint8Array(0),
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
     };
   },
 
@@ -173,8 +173,8 @@ export const EncryptedFileMetadata = {
     if (message.metadata.length !== 0) {
       obj.metadata = base64FromBytes(message.metadata);
     }
-    if (message.nonce.length !== 0) {
-      obj.nonce = base64FromBytes(message.nonce);
+    if (message.id !== "") {
+      obj.id = message.id;
     }
     return obj;
   },
@@ -185,7 +185,7 @@ export const EncryptedFileMetadata = {
   fromPartial<I extends Exact<DeepPartial<EncryptedFileMetadata>, I>>(object: I): EncryptedFileMetadata {
     const message = createBaseEncryptedFileMetadata();
     message.metadata = object.metadata ?? new Uint8Array(0);
-    message.nonce = object.nonce ?? new Uint8Array(0);
+    message.id = object.id ?? "";
     return message;
   },
 };
@@ -794,13 +794,13 @@ export const FileServerMessage_UploadFileMetadata = {
 };
 
 function createBaseFileServerMessage_DownloadFileMetadataQuery(): FileServerMessage_DownloadFileMetadataQuery {
-  return { id: 0 };
+  return { id: "" };
 }
 
 export const FileServerMessage_DownloadFileMetadataQuery = {
   encode(message: FileServerMessage_DownloadFileMetadataQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.id !== 0) {
-      writer.uint32(8).int64(message.id);
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
     }
     return writer;
   },
@@ -813,11 +813,11 @@ export const FileServerMessage_DownloadFileMetadataQuery = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 8) {
+          if (tag !== 10) {
             break;
           }
 
-          message.id = longToNumber(reader.int64() as Long);
+          message.id = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -829,13 +829,13 @@ export const FileServerMessage_DownloadFileMetadataQuery = {
   },
 
   fromJSON(object: any): FileServerMessage_DownloadFileMetadataQuery {
-    return { id: isSet(object.id) ? globalThis.Number(object.id) : 0 };
+    return { id: isSet(object.id) ? globalThis.String(object.id) : "" };
   },
 
   toJSON(message: FileServerMessage_DownloadFileMetadataQuery): unknown {
     const obj: any = {};
-    if (message.id !== 0) {
-      obj.id = Math.round(message.id);
+    if (message.id !== "") {
+      obj.id = message.id;
     }
     return obj;
   },
@@ -849,7 +849,7 @@ export const FileServerMessage_DownloadFileMetadataQuery = {
     object: I,
   ): FileServerMessage_DownloadFileMetadataQuery {
     const message = createBaseFileServerMessage_DownloadFileMetadataQuery();
-    message.id = object.id ?? 0;
+    message.id = object.id ?? "";
     return message;
   },
 };
@@ -860,11 +860,9 @@ function createBaseFileServerMessage_ListFileMetadataQuery(): FileServerMessage_
 
 export const FileServerMessage_ListFileMetadataQuery = {
   encode(message: FileServerMessage_ListFileMetadataQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    writer.uint32(10).fork();
     for (const v of message.ids) {
-      writer.int64(v);
+      writer.uint32(10).string(v!);
     }
-    writer.ldelim();
     return writer;
   },
 
@@ -876,22 +874,12 @@ export const FileServerMessage_ListFileMetadataQuery = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag === 8) {
-            message.ids.push(longToNumber(reader.int64() as Long));
-
-            continue;
+          if (tag !== 10) {
+            break;
           }
 
-          if (tag === 10) {
-            const end2 = reader.uint32() + reader.pos;
-            while (reader.pos < end2) {
-              message.ids.push(longToNumber(reader.int64() as Long));
-            }
-
-            continue;
-          }
-
-          break;
+          message.ids.push(reader.string());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -902,13 +890,13 @@ export const FileServerMessage_ListFileMetadataQuery = {
   },
 
   fromJSON(object: any): FileServerMessage_ListFileMetadataQuery {
-    return { ids: globalThis.Array.isArray(object?.ids) ? object.ids.map((e: any) => globalThis.Number(e)) : [] };
+    return { ids: globalThis.Array.isArray(object?.ids) ? object.ids.map((e: any) => globalThis.String(e)) : [] };
   },
 
   toJSON(message: FileServerMessage_ListFileMetadataQuery): unknown {
     const obj: any = {};
     if (message.ids?.length) {
-      obj.ids = message.ids.map((e) => Math.round(e));
+      obj.ids = message.ids;
     }
     return obj;
   },
@@ -1666,8 +1654,8 @@ export const ListFileMetadataResp_FileMetadatas = {
   fromJSON(object: any): ListFileMetadataResp_FileMetadatas {
     return {
       metadatas: isObject(object.metadatas)
-        ? Object.entries(object.metadatas).reduce<{ [key: number]: EncryptedFileMetadata }>((acc, [key, value]) => {
-          acc[globalThis.Number(key)] = EncryptedFileMetadata.fromJSON(value);
+        ? Object.entries(object.metadatas).reduce<{ [key: string]: EncryptedFileMetadata }>((acc, [key, value]) => {
+          acc[key] = EncryptedFileMetadata.fromJSON(value);
           return acc;
         }, {})
         : {},
@@ -1697,10 +1685,10 @@ export const ListFileMetadataResp_FileMetadatas = {
     object: I,
   ): ListFileMetadataResp_FileMetadatas {
     const message = createBaseListFileMetadataResp_FileMetadatas();
-    message.metadatas = Object.entries(object.metadatas ?? {}).reduce<{ [key: number]: EncryptedFileMetadata }>(
+    message.metadatas = Object.entries(object.metadatas ?? {}).reduce<{ [key: string]: EncryptedFileMetadata }>(
       (acc, [key, value]) => {
         if (value !== undefined) {
-          acc[globalThis.Number(key)] = EncryptedFileMetadata.fromPartial(value);
+          acc[key] = EncryptedFileMetadata.fromPartial(value);
         }
         return acc;
       },
@@ -1711,7 +1699,7 @@ export const ListFileMetadataResp_FileMetadatas = {
 };
 
 function createBaseListFileMetadataResp_FileMetadatas_MetadatasEntry(): ListFileMetadataResp_FileMetadatas_MetadatasEntry {
-  return { key: 0, value: undefined };
+  return { key: "", value: undefined };
 }
 
 export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
@@ -1719,8 +1707,8 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
     message: ListFileMetadataResp_FileMetadatas_MetadatasEntry,
     writer: _m0.Writer = _m0.Writer.create(),
   ): _m0.Writer {
-    if (message.key !== 0) {
-      writer.uint32(8).int64(message.key);
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
     }
     if (message.value !== undefined) {
       EncryptedFileMetadata.encode(message.value, writer.uint32(18).fork()).ldelim();
@@ -1736,11 +1724,11 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 8) {
+          if (tag !== 10) {
             break;
           }
 
-          message.key = longToNumber(reader.int64() as Long);
+          message.key = reader.string();
           continue;
         case 2:
           if (tag !== 18) {
@@ -1760,15 +1748,15 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
 
   fromJSON(object: any): ListFileMetadataResp_FileMetadatas_MetadatasEntry {
     return {
-      key: isSet(object.key) ? globalThis.Number(object.key) : 0,
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isSet(object.value) ? EncryptedFileMetadata.fromJSON(object.value) : undefined,
     };
   },
 
   toJSON(message: ListFileMetadataResp_FileMetadatas_MetadatasEntry): unknown {
     const obj: any = {};
-    if (message.key !== 0) {
-      obj.key = Math.round(message.key);
+    if (message.key !== "") {
+      obj.key = message.key;
     }
     if (message.value !== undefined) {
       obj.value = EncryptedFileMetadata.toJSON(message.value);
@@ -1785,7 +1773,7 @@ export const ListFileMetadataResp_FileMetadatas_MetadatasEntry = {
     object: I,
   ): ListFileMetadataResp_FileMetadatas_MetadatasEntry {
     const message = createBaseListFileMetadataResp_FileMetadatas_MetadatasEntry();
-    message.key = object.key ?? 0;
+    message.key = object.key ?? "";
     message.value = (object.value !== undefined && object.value !== null)
       ? EncryptedFileMetadata.fromPartial(object.value)
       : undefined;
