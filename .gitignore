@@ -35,6 +35,8 @@ big_central-*.tar
 
 assets/js/wasm.*
 
+**/result/
+
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 

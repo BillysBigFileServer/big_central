@@ -137,7 +137,7 @@ pub fn decrypt_chunk(
 
 #[wasm_bindgen]
 pub fn create_encryption_key(password: String) -> String {
-    EncryptionKey::new().serialize()
+    EncryptionKey::new(&password).serialize()
 }
 
 #[wasm_bindgen]

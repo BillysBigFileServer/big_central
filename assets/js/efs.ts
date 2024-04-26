@@ -8,12 +8,12 @@ export async function connect(): Promise<WebTransportBidirectionalStream> {
             if (transport == null) {
               // check if the browser is firefox, since only it supports the options we're giving (for now)
               if (navigator.userAgent.includes("Firefox") || navigator.userAgent.includes("Gecko")) {
-                transport = new WebTransport("https://localhost:9999/efs", {
+                transport = new WebTransport("https://big-file-server.fly.dev:9999/efs", {
                     allowPooling: true,
                     congestionControl: "throughput",
                 });
               } else {
-                transport = new WebTransport("https://localhost:9999/efs");
+                transport = new WebTransport("https://big-file-server.fly.dev:9999/efs");
               }
             }
 

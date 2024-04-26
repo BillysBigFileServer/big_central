@@ -464,8 +464,7 @@ async function show_files(_entry: any) {
   });
 }
 
-async function set_encryption_key(entry: any) {
-  const password = entry.detail.password as string;
+async function set_encryption_key(password: string) {
   const key = await generate_encryption_key(password);
 
   localStorage.setItem("encryption_key", key);
