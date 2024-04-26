@@ -12,31 +12,41 @@ defmodule BigCentralWeb.UserSessionController do
           "email" => email,
           "hashed_password" => password,
           "dl_token" => dl_token,
-          "action" => "signup"
+          "action" => "signup",
+          "signup_code" => signup_code
         }
       ) do
     {:ok, _, _} = Validation.validate(email, :email)
     {:ok, _, _} = Validation.validate(password, :password)
 
-    # FIXME: authorize the user
-    {:ok, _} = Users.create_user(%{email: email, password: password})
-    {:ok, t} = Token.generate_ultimate(email)
-
-    if dl_token != "" do
-      {:ok, _} = Tokens.DLTokens.save_dl_token(dl_token, t.token)
-    end
-
-    redirect_to =
-      case dl_token == "" do
-        true -> ~p"/files"
-        false -> ~p"/auth_app_success"
+    correct_signup_code =
+      case signup_code == (System.get_env("SIGNUP_CODE") || "billy123") do
+        true -> :ok
+        false -> {:err, :invalid_signup_code}
       end
 
-    conn
-    |> put_session(:token, t)
-    |> put_session(:email, email)
-    |> put_flash(:info, "Registered successfully")
-    |> redirect(to: redirect_to)
+    with :ok <- correct_signup_code,
+         {:ok, _} <- Users.create_user(%{email: email, password: password}) do
+      redirect_to =
+        case dl_token == "" do
+          true -> ~p"/login"
+          false -> ~p"/auth_app_success"
+        end
+
+      conn
+      |> put_flash(:info, "Registered successfully. Please log in.")
+      |> redirect(to: redirect_to)
+    else
+      {:err, :invalid_signup_code} ->
+        conn
+        |> put_flash(:error, "Invalid signup code")
+        |> redirect(to: ~p"/signup")
+
+      {:err, _error} ->
+        conn
+        |> put_flash(:error, "Email or password is invalid")
+        |> redirect(to: ~p"/signup")
+    end
   end
 
   def create(
@@ -54,10 +64,7 @@ defmodule BigCentralWeb.UserSessionController do
     case Users.login_user(%{email: email, password: password}) do
       {:ok, _} ->
         {:ok, t} = Token.generate_ultimate(email)
-
-        if dl_token != "" do
-          {:ok, _} = Tokens.DLTokens.save_dl_token(dl_token, t.token)
-        end
+        {:ok, _} = Tokens.DLTokens.save_dl_token(dl_token, t.token)
 
         redirect_to =
           case dl_token == "" do

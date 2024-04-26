@@ -8,6 +8,10 @@ defmodule BigCentral.Tokens.DLTokens do
 
   alias BigCentral.Tokens.DLToken
 
+  def save_dl_token("", _) do
+    {:ok, nil}
+  end
+
   def save_dl_token(dl_token, token) do
     expires = DateTime.utc_now() |> DateTime.add(1, :minute)
 
