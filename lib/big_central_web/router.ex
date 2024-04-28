@@ -1,7 +1,7 @@
 defmodule BigCentralWeb.Router do
   use BigCentralWeb, :router
 
-  import BigCentralWeb.UserAuth
+  import BigCentralWeb.UserSessionController
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -10,17 +10,10 @@ defmodule BigCentralWeb.Router do
     plug :put_root_layout, html: {BigCentralWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
-    plug :fetch_current_user
   end
 
   pipeline :api do
     plug :accepts, ["json"]
-  end
-
-  scope "/", BigCentralWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
   end
 
   # Other scopes may use custom stacks.
@@ -51,23 +44,37 @@ defmodule BigCentralWeb.Router do
     get "/dl_token", ApiController, :show
   end
 
-  ## Authentication routes
+  scope "/", BigCentralWeb do
+    pipe_through [:browser]
+
+    live_session :home,
+      layout: {BigCentralWeb.Layouts, :home} do
+      live "/", HomeLive.Index
+    end
+  end
 
   scope "/", BigCentralWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
-    live_session :redirect_if_user_is_authenticated,
-      layout: {BigCentralWeb.UserLive.Layouts, :app},
-      on_mount: [{BigCentralWeb.UserAuth, :redirect_if_user_is_authenticated}] do
+    live_session :unauthenticated,
+      layout: {BigCentralWeb.UserLive.Layouts, :app} do
       live "/signup", UserLive.Signup
       live "/login", UserLive.Login
-      live "/tokens", UserLive.Tokens
       live "/auth_app_success", UserLive.AuthAppSuccess
-      live "/files", FilesLive.Index
     end
 
     get "/users/logout", UserSessionController, :delete
     post "/users/signup", UserSessionController, :create
     post "/users/login", UserSessionController, :create
+  end
+
+  scope "/", BigCentralWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :authenticated,
+      layout: {BigCentralWeb.UserLive.Layouts, :app} do
+      live "/tokens", UserLive.Tokens
+      live "/files", FilesLive.Index
+    end
   end
 end

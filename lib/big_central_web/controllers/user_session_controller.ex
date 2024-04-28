@@ -90,7 +90,7 @@ defmodule BigCentralWeb.UserSessionController do
   def delete(conn, params) do
     redirect_page =
       case params["redirect_to"] do
-        nil -> "/login"
+        nil -> "/"
         page -> page
       end
 
@@ -98,5 +98,25 @@ defmodule BigCentralWeb.UserSessionController do
     |> clear_session()
     |> put_flash(:info, "Logged out successfully.")
     |> redirect(to: redirect_page)
+  end
+
+  def require_authenticated_user(conn, _opts) do
+    token = get_session(conn, :token)
+
+    if token == nil do
+      conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
+    end
+
+    case Token.verify(token, %{email: get_session(conn, :email)}) do
+      {:ok, _} ->
+        conn
+
+      {:error, _} ->
+        conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
+    end
+  end
+
+  def redirect_if_user_is_authenticated(conn, _opts) do
+    conn
   end
 end
