@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock};
 
 use bfsp::{
     hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey, EncryptionNonce,
-    FileMetadata, FileType, Message, PrependLen,
+    FileMetadata, FileMetadataVersion, FileType, Message,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -62,6 +62,7 @@ pub fn create_file_metadata(
     }
 
     let meta = FileMetadata {
+        version: FileMetadataVersion::V1,
         id: file_id,
         chunks: chunks
             .iter()
