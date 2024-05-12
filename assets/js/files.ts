@@ -8,15 +8,7 @@ const wasm = init("/wasm/wasm_bg.wasm");
 // TODO remove this when we can resume file uploads
 garbage_collect(localStorage.getItem("encryption_key")!);
 
-async function download_file(e: any) {
-  let file_id: string = e.target.id;
-
-  const query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
-    id: file_id,
-  });
-  const msg = bfsp.FileServerMessage.create({
-    downloadFileMetadataQuery: query,
-  });
+async function exchange_messages(msg: bfsp.FileServerMessage): Promise<Uint8Array> {
   const msg_bin = prepMessage(msg, get_token());
 
   let sock = await efs.connect();
@@ -26,37 +18,123 @@ async function download_file(e: any) {
   await writer.ready;
   await writer.write(msg_bin);
 
-  const resp_bin = await efs.read_all(reader);
-  const resp = bfsp.DownloadFileMetadataResp.decode(resp_bin);
+  writer.close();
 
-  if (resp.err != undefined) {
+  const resp_bin = await efs.read_all(reader);
+
+  reader.cancel();
+  return resp_bin;
+}
+
+async function delete_file(file_id: string) {
+  const file_meta_query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
+    id: file_id,
+  });
+  const file_meta_msg = bfsp.FileServerMessage.create({
+    downloadFileMetadataQuery: file_meta_query,
+  });
+  const file_meta_resp_bin = await exchange_messages(file_meta_msg);
+  const file_meta_resp = bfsp.DownloadFileMetadataResp.decode(file_meta_resp_bin);
+  if (file_meta_resp.err != undefined) {
     alert("Error downloading file metadata");
     return;
   }
 
-  const master_enc_key  = localStorage.getItem("encryption_key")!;
+  const delete_file_meta_query = bfsp.FileServerMessage_DeleteFileMetadataQuery.create({
+    id: file_id,
+  });
+  const delete_file_meta_msg = bfsp.FileServerMessage.create({
+    deleteFileMetadataQuery: delete_file_meta_query,
+  });
+  
+  const delete_file_meta_resp_bin = await exchange_messages(delete_file_meta_msg);
+  const delete_file_meta_resp = bfsp.DownloadFileMetadataResp.decode(delete_file_meta_resp_bin);
+  if (delete_file_meta_resp.err != undefined) {
+    alert("Error deleting file metadata");
+    return;
+  }
+
+  const chunks = await list_chunks(file_id, file_meta_resp.encryptedFileMetadata!.metadata!);
+  const delete_chunk_query = bfsp.FileServerMessage_DeleteChunksQuery.create({
+    chunkIds: _.map(chunks, (chunk: any) => {
+      return chunk.id;
+    }),
+  });
+  const delete_chunk_msg = bfsp.FileServerMessage.create({
+    deleteChunksQuery: delete_chunk_query,
+  });
+  const delete_chunk_resp_bin = await exchange_messages(delete_chunk_msg);
+  const delete_chunk_resp = bfsp.DeleteChunksResp.decode(delete_chunk_resp_bin);
+  if (delete_chunk_resp.err != undefined) {
+    alert("Error deleting chunks");
+    return;
+  }
+}
+
+export type Result<T, E = Error> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+async function get_file_metadata(file_id: string): Promise<Result<Uint8Array, string>> {
+  const query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
+    id: file_id,
+  });
+  const msg = bfsp.FileServerMessage.create({
+    downloadFileMetadataQuery: query,
+  });
+  
+  const resp_bin = await exchange_messages(msg);
+  const resp = bfsp.DownloadFileMetadataResp.decode(resp_bin);
+
+  if (resp.err != undefined) {
+    return { ok: false, error: "Error downloading file metadata" };
+  }
 
   const file_metadata = resp.encryptedFileMetadata?.metadata!;
+  return { ok: true, value: file_metadata };
+}
 
+async function list_chunks(file_id: string, file_metadata: Uint8Array): Promise<Object[]> {
   await wasm;
+  const master_enc_key  = localStorage.getItem("encryption_key")!;
   const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
   const chunks = f.file_chunks(file_metadata, file_id, file_enc_key);
+
   const chunk_objs  = _.map(chunks, (chunk: string) => {
     const obj = JSON.parse(chunk);
     return obj;
   });
 
-  await save_file_in_memory(file_metadata, file_id, chunk_objs, file_enc_key, sock, writer, reader);
+  return chunk_objs;
+}
+
+async function download_file(e: any) {
+  let file_id: string = e.target.id;
+
+  await wasm;
+  const file_metadata_result = await get_file_metadata(file_id);
+  if (!file_metadata_result.ok) {
+    alert(file_metadata_result.error);
+    return;
+  }
+  const chunk_objs = await list_chunks(file_id, file_metadata_result.value);
+
+  await save_file_in_memory(file_metadata_result.value, file_id, chunk_objs);
 }
 
 // Firefox doesn't support the naive file system api, so we just save the file in memory and pray it fits
 // https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
-async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, chunk_objs: any[], enc_key: string, sock: WebTransportBidirectionalStream, writer: WritableStreamDefaultWriter, reader: ReadableStreamDefaultReader) {
-  await wasm;
+async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, chunk_objs: any[]) {
+  const master_enc_key  = localStorage.getItem("encryption_key")!;
+  const enc_key = f.create_file_encryption_key(master_enc_key, file_id);
+
   const sorted_chunk_objs = _.sortBy(chunk_objs, (chunk_obj: any) => {
     return chunk_obj.indice;
   });
 
+  let sock = efs.connect();
+
+  await wasm;
   const total_file_size: BigInt = f.file_size(file_metadata, file_id, enc_key);
   let file_bin: Uint8Array = new Uint8Array();
 
@@ -66,6 +144,9 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
   file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
+
+  let reader = (await sock).readable.getReader();
+  let writer = (await sock).writable.getWriter();
 
   try {
     for (const chunk_obj of sorted_chunk_objs) {
@@ -97,9 +178,9 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
             await writer.close();
             await reader.cancel();
 
-            sock = await efs.connect();
-            reader = sock.readable.getReader();
-            writer = sock.writable.getWriter();
+            sock = efs.connect();
+            reader = (await sock).readable.getReader();
+            writer = (await sock).writable.getWriter();
 
             console.warn("Timeout reading data from stream; reconnecting");
 
@@ -461,7 +542,6 @@ function get_token(): string {
 
 async function show_files(_entry: any) {
   console.log("showing files");
-  const sock = await efs.connect();
   let query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
     ids: [],
   });
@@ -469,22 +549,9 @@ async function show_files(_entry: any) {
     listFileMetadataQuery: query,
   });
 
-  let msg_bin = prepMessage(msg, get_token());
+  const resp_bin = exchange_messages(msg);
 
-  const writer = sock.writable.getWriter();
-
-  await writer.ready;
-  await writer.write(msg_bin);
-
-  const reader = sock.readable.getReader();
-
-  const resp_bin = await efs.read_all(reader);
-
-  await writer.close();
-  await reader.cancel();
-
-
-  const resp = bfsp.ListFileMetadataResp.decode(resp_bin);
+  const resp = bfsp.ListFileMetadataResp.decode(await resp_bin);
 
   const metas: any = resp.metadatas?.metadatas!;
   await wasm;
@@ -506,11 +573,6 @@ async function show_files(_entry: any) {
     const outerDiv = document.createElement('div');
     outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer'); // Add 'flex-grow' class
 
-    outerDiv.addEventListener('click', () => {
-      download_file({ target: { id: file_id } });
-    });
-
-
     // Create the flex container div
     const flexContainerDiv = document.createElement('div');
     flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
@@ -530,6 +592,26 @@ async function show_files(_entry: any) {
 
     // Append the heading to the inner flex container div
     innerFlexDiv.appendChild(heading);
+
+    const downloadButton = document.createElement('button');
+    downloadButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>';
+    downloadButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
+    downloadButton.addEventListener('click', () => {
+      download_file({ target: { id: file_id } });
+    });
+
+
+    innerFlexDiv.appendChild(downloadButton);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
+    deleteButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
+    deleteButton.addEventListener('click', async () => {
+      await delete_file(file_id);
+      await show_files(null);
+    });
+
+    innerFlexDiv.appendChild(deleteButton);
 
     // Append the inner flex container div and the button to the flex container div
     flexContainerDiv.appendChild(innerFlexDiv);
