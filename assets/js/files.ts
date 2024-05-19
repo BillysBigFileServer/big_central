@@ -8,24 +8,6 @@ const wasm = init("/wasm/wasm_bg.wasm");
 // TODO remove this when we can resume file uploads
 garbage_collect(localStorage.getItem("encryption_key")!);
 
-async function exchange_messages(msg: bfsp.FileServerMessage): Promise<Uint8Array> {
-  const msg_bin = prepMessage(msg, get_token());
-
-  let sock = await efs.connect();
-  let reader = sock.readable.getReader();
-  let writer = sock.writable.getWriter();
-
-  await writer.ready;
-  await writer.write(msg_bin);
-
-  writer.close();
-
-  const resp_bin = await efs.read_all(reader);
-
-  reader.cancel();
-  return resp_bin;
-}
-
 async function delete_file(file_id: string) {
   const file_meta_query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
     id: file_id,
@@ -33,23 +15,23 @@ async function delete_file(file_id: string) {
   const file_meta_msg = bfsp.FileServerMessage.create({
     downloadFileMetadataQuery: file_meta_query,
   });
-  const file_meta_resp_bin = await exchange_messages(file_meta_msg);
+  const sock = await efs.connect();
+  const file_meta_resp_bin = await sock.exchange_messages(file_meta_msg);
   const file_meta_resp = bfsp.DownloadFileMetadataResp.decode(file_meta_resp_bin);
   if (file_meta_resp.err != undefined) {
     alert("Error downloading file metadata");
     return;
   }
 
-  const delete_file_meta_query = bfsp.FileServerMessage_DeleteFileMetadataQuery.create({
+  const delete_file_query = bfsp.FileServerMessage_DeleteFileMetadataQuery.create({
     id: file_id,
   });
-  const delete_file_meta_msg = bfsp.FileServerMessage.create({
-    deleteFileMetadataQuery: delete_file_meta_query,
+  const delete_file_msg = bfsp.FileServerMessage.create({
+    deleteFileMetadataQuery: delete_file_query,
   });
-  
-  const delete_file_meta_resp_bin = await exchange_messages(delete_file_meta_msg);
-  const delete_file_meta_resp = bfsp.DownloadFileMetadataResp.decode(delete_file_meta_resp_bin);
-  if (delete_file_meta_resp.err != undefined) {
+  const delete_file_resp_bin = await sock.exchange_messages(delete_file_msg);
+  const delete_file_resp = bfsp.DeleteFileMetadataResp.decode(delete_file_resp_bin);
+  if (delete_file_resp.err != undefined) {
     alert("Error deleting file metadata");
     return;
   }
@@ -63,7 +45,7 @@ async function delete_file(file_id: string) {
   const delete_chunk_msg = bfsp.FileServerMessage.create({
     deleteChunksQuery: delete_chunk_query,
   });
-  const delete_chunk_resp_bin = await exchange_messages(delete_chunk_msg);
+  const delete_chunk_resp_bin = await sock.exchange_messages(delete_chunk_msg);
   const delete_chunk_resp = bfsp.DeleteChunksResp.decode(delete_chunk_resp_bin);
   if (delete_chunk_resp.err != undefined) {
     alert("Error deleting chunks");
@@ -82,8 +64,9 @@ async function get_file_metadata(file_id: string): Promise<Result<Uint8Array, st
   const msg = bfsp.FileServerMessage.create({
     downloadFileMetadataQuery: query,
   });
-  
-  const resp_bin = await exchange_messages(msg);
+
+  const sock = await efs.connect();
+  const resp_bin = await sock.exchange_messages(msg);
   const resp = bfsp.DownloadFileMetadataResp.decode(resp_bin);
 
   if (resp.err != undefined) {
@@ -145,9 +128,6 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
-  let reader = (await sock).readable.getReader();
-  let writer = (await sock).writable.getWriter();
-
   try {
     for (const chunk_obj of sorted_chunk_objs) {
       const chunk_id: string = chunk_obj.id;
@@ -159,29 +139,17 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
       const msg = bfsp.FileServerMessage.create({
         downloadChunkQuery: query,
       })
-      const msg_bytes = prepMessage(msg, get_token());
 
       let resp_bin: Uint8Array = new Uint8Array();
 
       while (resp_bin.length == 0) {
         // TODO figure out why we randomly timeout. i might be working around bugs in the firefox impl
         try {
-          await writer.ready;
-          await writer.write(msg_bytes);
-
-          // we need to make sure the data has been flushed
-          await writer.ready;
-          resp_bin = await efs.read_all(reader);
+          resp_bin = await (await sock).exchange_messages(msg);
         } catch (err) {
           // TODO make this error a const
           if (err == "Timeout reading data from stream") {
-            await writer.close();
-            await reader.cancel();
-
             sock = efs.connect();
-            reader = (await sock).readable.getReader();
-            writer = (await sock).writable.getWriter();
-
             console.warn("Timeout reading data from stream; reconnecting");
 
             continue;
@@ -218,15 +186,10 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
     URL.revokeObjectURL(blob_url);
 
     file_progres_indicator.remove();
-    await writer.close();
-    await reader.cancel();
 
   } catch (err) {
     console.error("Error downloading file: " + err);
-
     file_progres_indicator.remove();
-    await writer.close();
-    await reader.cancel();
   }
 }
 
@@ -308,21 +271,14 @@ export async function garbage_collect(master_enc_key: string) {
 
   let sock = await efs.connect();
 
-  let reader = sock.readable.getReader();
-  let writer = sock.writable.getWriter();
-
   const file_meta_query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
     ids: [],
   });
   const file_meta_msg = bfsp.FileServerMessage.create({
     listFileMetadataQuery: file_meta_query,
   });
-  const file_meta_msg_bin = prepMessage(file_meta_msg, get_token());
 
-  await writer.ready;
-  await writer.write(file_meta_msg_bin);
-
-  const file_meta_resp_bin = await efs.read_all(reader);
+  const file_meta_resp_bin = await sock.exchange_messages(file_meta_msg);
   const file_meta_resp = bfsp.ListFileMetadataResp.decode(file_meta_resp_bin);
   if (file_meta_resp.err != undefined) {
     throw new Error("Error listing file metadata: " + file_meta_resp.err);
@@ -342,12 +298,7 @@ export async function garbage_collect(master_enc_key: string) {
   const chunk_msg = bfsp.FileServerMessage.create({
     listChunkMetadataQuery: chunk_query,
   });
-  const chunk_msg_bin = prepMessage(chunk_msg, get_token());
-
-  await writer.ready;
-  await writer.write(chunk_msg_bin);
-
-  const chunk_resp_bin = await efs.read_all(reader);
+  const chunk_resp_bin = await sock.exchange_messages(chunk_msg);
   const chunk_resp = bfsp.ListChunkMetadataResp.decode(chunk_resp_bin);
   if (chunk_resp.err != undefined) {
     throw new Error("Error listing uploaded chunks: " + chunk_resp.err);
@@ -365,18 +316,11 @@ export async function garbage_collect(master_enc_key: string) {
   const chunk_delete_msg = bfsp.FileServerMessage.create({
     deleteChunksQuery: chunk_delete_query,
   });
-  const chunk_delete_msg_bin = prepMessage(chunk_delete_msg, get_token());
-  await writer.ready;
-  await writer.write(chunk_delete_msg_bin);
-
-  const chunk_delete_resp_bin = await efs.read_all(reader);
+  const chunk_delete_resp_bin = await sock.exchange_messages(chunk_delete_msg);
   const chunk_delete_resp = bfsp.DeleteChunksResp.decode(chunk_delete_resp_bin);
   if (chunk_delete_resp.err != undefined) {
     throw new Error("Error deleting chunks: " + chunk_delete_resp);
   }
-
-  await writer.close();
-  await reader.cancel();
 
   console.log("Deleted " + chunks_to_delete.length + " chunks");
 }
@@ -389,9 +333,6 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
   let chunks: Uint8Array = new Uint8Array();
 
   let sock = await efs.connect();
-
-  let reader = sock.readable.getReader();
-  let writer = sock.writable.getWriter();
 
   const file_name = file.name;
 
@@ -420,30 +361,25 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
       size: chunk_len,
       nonce: chunk_nonce,
     });
-    const chunk_meta_bin = prepend_len(bfsp.ChunkMetadata.encode(chunk_meta).finish());
+    const chunk_meta_bin = efs.prepend_len(bfsp.ChunkMetadata.encode(chunk_meta).finish());
     const encrypted_chunk = f.encrypt_chunk(view, chunk_meta_bin, file_enc_key);
 
     const chunk_metadata_msg = bfsp.FileServerMessage_UploadChunk.create({
       chunkMetadata: chunk_meta,
       chunk: encrypted_chunk,
     });
-    const msg = prepMessage(bfsp.FileServerMessage.create({
+    const msg = bfsp.FileServerMessage.create({
       uploadChunk: chunk_metadata_msg,
-    }), get_token());
+    });
 
 
     let result_bin: Uint8Array = new Uint8Array();
     for (let retries = 0; retries < 3; retries += 1) {
       try {
-        await writer.ready;
-        await writer.write(msg);
-
         // TODO: we need to handle errors here
-        result_bin = await efs.read_all(reader);
+        result_bin = await sock.exchange_messages(msg);
       } catch(e) {
         sock = await efs.connect();
-        writer = sock.writable.getWriter();
-        reader = sock.readable.getReader();
 
         console.warn("Error uploading chunk: " + e + ", retrying");
         if (retries == 2) {
@@ -473,15 +409,12 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
     })
   });
 
-  const msg = prepMessage(bfsp.FileServerMessage.create({
+  const msg = bfsp.FileServerMessage.create({
     uploadFileMetadata: file_metadata_msg,
-  }), get_token());
+  });
 
 
-  await writer.ready;
-  await writer.write(msg);
-
-  const resp_bin = await efs.read_all(reader);
+  const resp_bin = await sock.exchange_messages(msg);
   const resp = bfsp.UploadFileMetadataResp.decode(resp_bin);
 
   if (resp.err != undefined) {
@@ -490,11 +423,6 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
 
   file_progres_indicator.remove();
   console.log("Uploaded file " + file.name);
-
-  console.log("Closing writer");
-  await writer.close();
-  console.log("Closing reader");
-  await reader.cancel();
 }
 
 
@@ -515,31 +443,6 @@ export async function upload_file(_hook: ViewHook) {
   await show_files(null);
 }
 
-function get_auth(token: string): bfsp.FileServerMessage_Authentication{
-  return bfsp.FileServerMessage_Authentication.create({
-    token: token,
-  });
-}
-
-// prepend_len prepends the 4 byte little endian length of the message to the message
-function prepend_len(bytes: Uint8Array): Uint8Array {
-  const len = numberToLittleEndianUint8Array(bytes.length);
-  return efs.concatenateUint8Arrays(len, bytes);
-
-}
-
-function prepMessage(msg: bfsp.FileServerMessage, token: string): Uint8Array {
-  msg.auth = get_auth(token);
-
-  let msg_bin = bfsp.FileServerMessage.encode(msg).finish();
-  return prepend_len(msg_bin);
-}
-
-function get_token(): string {
-  const token = document.getElementById("token")?.getAttribute("value");
-  return token!;
-}
-
 async function show_files(_entry: any) {
   console.log("showing files");
   let query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
@@ -549,7 +452,8 @@ async function show_files(_entry: any) {
     listFileMetadataQuery: query,
   });
 
-  const resp_bin = exchange_messages(msg);
+  const sock = await efs.connect();
+  const resp_bin = sock.exchange_messages(msg);
 
   const resp = bfsp.ListFileMetadataResp.decode(await resp_bin);
 
@@ -651,17 +555,6 @@ async function generate_encryption_key(password: string) : Promise<string> {
   await wasm;
   let key = f.create_encryption_key(password);
   return key;
-}
-
-function numberToLittleEndianUint8Array(num: number): Uint8Array {
-  const arr = new Uint8Array(4);
-  for (let i = 0; i < 4; i++) {
-    // Get the current byte using bitwise AND and right shift
-    arr[i] = num & 0xff;
-    // Shift the number right by 8 bits for the next byte
-    num >>>= 8;
-  }
-  return arr;
 }
 
 export { show_files, set_encryption_key };
