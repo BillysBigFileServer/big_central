@@ -2,6 +2,7 @@ import init, * as f from "./wasm";
 import {ViewHook} from "phoenix_live_view"
 import _ from "lodash"
 import * as efs from "./efs";
+import { prepend_len, concatenateUint8Arrays } from "./efs_wc";
 import * as bfsp from "./bfsp";
 
 const wasm = init("/wasm/wasm_bg.wasm");
@@ -171,7 +172,7 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
 
 
       // TODO check chunk hash
-      file_bin = efs.concatenateUint8Arrays(file_bin, decrypted_chunk);
+      file_bin = concatenateUint8Arrays(file_bin, decrypted_chunk);
 
       const percentage = ((file_bin.length / Number(total_file_size)) * 100).toFixed(1);
       file_progres_indicator.textContent = "Downloading " + file_name + ": " + percentage + "% (" + human_readable_size(file_bin.length) + ")";
@@ -361,7 +362,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
       size: chunk_len,
       nonce: chunk_nonce,
     });
-    const chunk_meta_bin = efs.prepend_len(bfsp.ChunkMetadata.encode(chunk_meta).finish());
+    const chunk_meta_bin = prepend_len(bfsp.ChunkMetadata.encode(chunk_meta).finish());
     const encrypted_chunk = f.encrypt_chunk(view, chunk_meta_bin, file_enc_key);
 
     const chunk_metadata_msg = bfsp.FileServerMessage_UploadChunk.create({
@@ -393,7 +394,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
       throw new Error("Error uploading chunk: " + result.err);
     }
 
-    chunks = efs.concatenateUint8Arrays(chunks, chunk_meta_bin);
+    chunks = concatenateUint8Arrays(chunks, chunk_meta_bin);
     const percentage = ((offset / file.size) * 100).toFixed(2);
     file_progres_indicator.textContent = "Uploading " + file_name + ": " + percentage + "% (" + human_readable_size(offset) + ")";
   }

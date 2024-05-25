@@ -27,10 +27,6 @@ import { prep_signup } from "./signup";
 import { prep_login } from "./login";
 
 
-if (navigator.userAgent.indexOf('Safari') != -1 && navigator.userAgent.indexOf('Chrome') == -1) {
-    alert("This site isn't compatible with safari. Go ahead and try though :)");
-}
-
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
