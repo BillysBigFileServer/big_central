@@ -6,7 +6,7 @@ use bfsp::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use time::macros::datetime;
+use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -60,6 +60,8 @@ pub fn create_file_metadata(
 
         chunks.push(ChunkMetadata::decode(chunk_meta).map_err(|err| err.to_string())?);
     }
+    let date_time = OffsetDateTime::now_utc();
+    let date_time = PrimitiveDateTime::new(date_time.date(), date_time.time());
 
     let meta = FileMetadata {
         version: FileMetadataVersion::V1,
@@ -86,8 +88,8 @@ pub fn create_file_metadata(
                 size
             })
             .sum(),
-        create_time: datetime!(2020-01-01 0:00),
-        modification_time: datetime!(2020-01-01 0:00),
+        create_time: date_time,
+        modification_time: date_time,
         directory: directory.unwrap_or_else(|| "/".to_string()),
     };
     Ok(meta.encrypt_serialize(&enc_key, nonce)?)
@@ -244,6 +246,28 @@ pub fn file_size(
 ) -> Result<u64, String> {
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
     Ok(meta.file_size)
+}
+
+#[wasm_bindgen]
+pub fn file_create_date(
+    encrypted_metadata: Vec<u8>,
+    nonce: String,
+    enc_key: String,
+) -> Result<String, String> {
+    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
+    let (year, month, day) = meta.create_time.to_calendar_date();
+    Ok(format!("{} {}, {}", day, month, year))
+}
+
+#[wasm_bindgen]
+pub fn file_modification_date(
+    encrypted_metadata: Vec<u8>,
+    nonce: String,
+    enc_key: String,
+) -> Result<String, String> {
+    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
+    let (year, month, day) = meta.create_time.to_calendar_date();
+    Ok(format!("{} {}, {}", day, month, year))
 }
 
 #[wasm_bindgen]

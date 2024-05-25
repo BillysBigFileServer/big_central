@@ -473,6 +473,8 @@ async function show_files(_entry: any) {
     const file_enc_key = f.create_file_encryption_key(master_enc_key!, file_id);
     let name = f.file_name(file_meta.metadata, file_meta.id, file_enc_key!);
     let size = f.file_size(file_meta.metadata, file_meta.id, file_enc_key!);
+    let created = f.file_create_date(file_meta.metadata, file_meta.id, file_enc_key!);
+    let modified = f.file_modification_date(file_meta.metadata, file_meta.id, file_enc_key!);
 
     // Create the outer div element
     const outerDiv = document.createElement('div');
@@ -526,8 +528,8 @@ async function show_files(_entry: any) {
     const paragraphs = [
         'File size: ' + human_readable_size(Number(size)),
         // TODO
-        'Created: April 19, 2024',
-        'Last modified: April 19, 2024'
+        'Created: ' + created,
+        'Last modified: ' + modified
     ];
 
     // Create and append the paragraphs to the outer div
