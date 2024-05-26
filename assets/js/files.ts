@@ -379,6 +379,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
       try {
         // TODO: we need to handle errors here
         result_bin = await sock.exchange_messages(msg);
+        break;
       } catch(e) {
         sock = await efs.connect();
 
