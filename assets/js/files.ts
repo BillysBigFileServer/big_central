@@ -5,23 +5,17 @@ import * as efs from "./efs";
 import { prepend_len, concatenateUint8Arrays } from "./efs_wc";
 import * as bfsp from "./bfsp";
 
+
+let NUM_FILES_TRANSFERRING = 0;
+
 const wasm = init("/wasm/wasm_bg.wasm");
 // TODO remove this when we can resume file uploads
 garbage_collect(localStorage.getItem("encryption_key")!);
 
 async function delete_file(file_id: string) {
-  const file_meta_query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
-    id: file_id,
-  });
-  const file_meta_msg = bfsp.FileServerMessage.create({
-    downloadFileMetadataQuery: file_meta_query,
-  });
-  const sock = await efs.connect();
-  const file_meta_resp_bin = await sock.exchange_messages(file_meta_msg);
-  const file_meta_resp = bfsp.DownloadFileMetadataResp.decode(file_meta_resp_bin);
-  if (file_meta_resp.err != undefined) {
-    alert("Error downloading file metadata");
-    return;
+  const file_metadata = await get_file_metadata(file_id);
+  if (!file_metadata.ok) {
+    throw new Error("Error getting file metadata: " + file_metadata.error);
   }
 
   const delete_file_query = bfsp.FileServerMessage_DeleteFileMetadataQuery.create({
@@ -30,6 +24,7 @@ async function delete_file(file_id: string) {
   const delete_file_msg = bfsp.FileServerMessage.create({
     deleteFileMetadataQuery: delete_file_query,
   });
+  const sock = await efs.connect(null);
   const delete_file_resp_bin = await sock.exchange_messages(delete_file_msg);
   const delete_file_resp = bfsp.DeleteFileMetadataResp.decode(delete_file_resp_bin);
   if (delete_file_resp.err != undefined) {
@@ -37,11 +32,9 @@ async function delete_file(file_id: string) {
     return;
   }
 
-  const chunks = await list_chunks(file_id, file_meta_resp.encryptedFileMetadata!.metadata!);
+  const chunks = await list_chunks(file_metadata.value);
   const delete_chunk_query = bfsp.FileServerMessage_DeleteChunksQuery.create({
-    chunkIds: _.map(chunks, (chunk: any) => {
-      return chunk.id;
-    }),
+    chunkIds: chunks,
   });
   const delete_chunk_msg = bfsp.FileServerMessage.create({
     deleteChunksQuery: delete_chunk_query,
@@ -58,7 +51,7 @@ export type Result<T, E = Error> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 
-async function get_file_metadata(file_id: string): Promise<Result<Uint8Array, string>> {
+async function get_file_metadata(file_id: string): Promise<Result<bfsp.FileMetadata, string>> {
   const query = bfsp.FileServerMessage_DownloadFileMetadataQuery.create({
     id: file_id,
   });
@@ -66,7 +59,7 @@ async function get_file_metadata(file_id: string): Promise<Result<Uint8Array, st
     downloadFileMetadataQuery: query,
   });
 
-  const sock = await efs.connect();
+  const sock = await efs.connect(null);
   const resp_bin = await sock.exchange_messages(msg);
   const resp = bfsp.DownloadFileMetadataResp.decode(resp_bin);
 
@@ -74,64 +67,60 @@ async function get_file_metadata(file_id: string): Promise<Result<Uint8Array, st
     return { ok: false, error: "Error downloading file metadata" };
   }
 
-  const file_metadata = resp.encryptedFileMetadata?.metadata!;
+  const master_enc_key  = localStorage.getItem("encryption_key")!;
+  const enc_key = f.create_file_encryption_key(master_enc_key, file_id);
+  const enc_file_metadata = resp.encryptedFileMetadata?.metadata!;
+  const file_metadata_bytes = f.decrypt_metadata(enc_file_metadata, file_id, enc_key)
+  const file_metadata = bfsp.FileMetadata.decode(file_metadata_bytes);
   return { ok: true, value: file_metadata };
 }
 
-async function list_chunks(file_id: string, file_metadata: Uint8Array): Promise<Object[]> {
+async function list_chunks(file_metadata: bfsp.FileMetadata): Promise<string[]> {
   await wasm;
-  const master_enc_key  = localStorage.getItem("encryption_key")!;
-  const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
-  const chunks = f.file_chunks(file_metadata, file_id, file_enc_key);
+  const chunks = file_metadata.chunks;
 
-  const chunk_objs  = _.map(chunks, (chunk: string) => {
-    const obj = JSON.parse(chunk);
-    return obj;
+  const chunk_ids  = _.map(chunks, (chunk: string) => {
+    return chunk;
   });
-
-  return chunk_objs;
+  return chunk_ids;
 }
 
-let num_being_downloaded = 0;
 async function download_file(e: any) {
   let file_id: string = e.target.id;
 
   document.getElementById("progress_list_div")?.classList.remove("hidden");
 
   await wasm;
-  const file_metadata_result = await get_file_metadata(file_id);
-  if (!file_metadata_result.ok) {
-    alert(file_metadata_result.error);
+  const file_metadata = await get_file_metadata(file_id);
+  if (!file_metadata.ok) {
+    alert(file_metadata.error);
     return;
   }
-  const chunk_objs = await list_chunks(file_id, file_metadata_result.value);
+  NUM_FILES_TRANSFERRING += 1;
+  await save_file_in_memory(file_metadata.value);
+  NUM_FILES_TRANSFERRING -= 1;
 
-  num_being_downloaded += 1;
-  await save_file_in_memory(file_metadata_result.value, file_id, chunk_objs);
-  num_being_downloaded -= 1;
-
-  if (num_being_downloaded == 0) {
+  if (NUM_FILES_TRANSFERRING == 0) {
     document.getElementById("progress_list_div")?.classList.add("hidden");
   }
 }
 
 // Firefox doesn't support the naive file system api, so we just save the file in memory and pray it fits
 // https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
-async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, chunk_objs: any[]) {
+async function save_file_in_memory(file_metadata: bfsp.FileMetadata) {
   const master_enc_key  = localStorage.getItem("encryption_key")!;
-  const enc_key = f.create_file_encryption_key(master_enc_key, file_id);
+  const enc_key = f.create_file_encryption_key(master_enc_key, file_metadata.id);
 
-  const sorted_chunk_objs = _.sortBy(chunk_objs, (chunk_obj: any) => {
-    return chunk_obj.indice;
-  });
+  const sortedKeys: number[]= _.sortBy(Array.from(Object.keys(file_metadata.chunks)).map((x) => parseInt(x)));
+  const sorted_chunks = sortedKeys.map(key => file_metadata.chunks[key]);
 
-  let sock = efs.connect();
+  let sock = efs.connect(null);
 
   await wasm;
-  const total_file_size: BigInt = f.file_size(file_metadata, file_id, enc_key);
+  const total_file_size: number = file_metadata.fileSize;
   let file_bin: Uint8Array = new Uint8Array();
 
-  const file_name = f.file_name(file_metadata, file_id, enc_key);
+  const file_name = file_metadata.fileName;
 
   let file_progres_indicator = document.createElement("li");
   file_progres_indicator.textContent = "Downloading " + file_name + ": 0.0% (" + 0 + " bytes)";
@@ -139,9 +128,7 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
   try {
-    for (const chunk_obj of sorted_chunk_objs) {
-      const chunk_id: string = chunk_obj.id;
-
+    for (const chunk_id of sorted_chunks) {
       const query = bfsp.FileServerMessage_DownloadChunkQuery.create({
         chunkId: chunk_id,
 
@@ -159,12 +146,12 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
         } catch (err) {
           // TODO make this error a const
           if (err == "Timeout reading data from stream") {
-            sock = efs.connect();
+            sock = efs.connect(efs.ConnectionType.HTTP);
             console.warn("Timeout reading data from stream; reconnecting");
 
             continue;
           } else {
-            throw new Error(String(err));
+            throw new Error("Error exchanging messages: " + String(err));
           }
         }
       }
@@ -179,19 +166,25 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
       const chunk_meta_bin: Uint8Array = bfsp.ChunkMetadata.encode(chunk_meta).finish();
       const decrypted_chunk = f.decrypt_chunk(resp.chunkData?.chunk!, chunk_meta_bin, enc_key);
 
+      if (!_.isEqual(chunk_meta.hash, f.chunk_hash(decrypted_chunk))) {
+        console.log("True chunk hash: " + chunk_meta.hash)
+        console.log("Calculated chunk hash: " + f.chunk_hash(decrypted_chunk))
+        throw new Error("Chunk hash mismatch");
+      }
 
-      // TODO check chunk hash
+
       file_bin = concatenateUint8Arrays(file_bin, decrypted_chunk);
 
       const percentage = ((file_bin.length / Number(total_file_size)) * 100).toFixed(1);
       file_progres_indicator.textContent = "Downloading " + file_name + ": " + percentage + "% (" + human_readable_size(file_bin.length) + ")";
     }
 
+    // TODO check file hash
     let blob = new Blob([file_bin]);
     let blob_url = URL.createObjectURL(blob);
     let a = document.createElement("a");
     a.href = blob_url;
-    a.download = f.file_name(file_metadata, file_id, enc_key);
+    a.download = file_metadata.fileName;
     a.click();
     URL.revokeObjectURL(blob_url);
 
@@ -201,6 +194,8 @@ async function save_file_in_memory(file_metadata: Uint8Array, file_id: string, c
     console.error("Error downloading file: " + err);
     file_progres_indicator.remove();
   }
+
+
 }
 
 function human_readable_size(size: number): string {
@@ -279,7 +274,7 @@ export async function upload_directory(_hook: ViewHook) {
 export async function garbage_collect(master_enc_key: string) {
   await wasm;
 
-  let sock = await efs.connect();
+  let sock = await efs.connect(null);
 
   const file_meta_query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
     ids: [],
@@ -294,11 +289,13 @@ export async function garbage_collect(master_enc_key: string) {
     throw new Error("Error listing file metadata: " + file_meta_resp.err);
   }
 
-  const good_chunk_ids: string[] = _.flatMap(file_meta_resp.metadatas?.metadatas!, (file_meta: bfsp.EncryptedFileMetadata, file_id: string) => {
+  const good_chunk_ids: string[] = _.flatMap(file_meta_resp.metadatas?.metadatas!, (enc_file_meta: bfsp.EncryptedFileMetadata, file_id: string) => {
     const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
-    const chunks = f.file_chunks(file_meta.metadata, file_id, file_enc_key);
+    const file_meta_bin = f.decrypt_metadata(enc_file_meta.metadata!, enc_file_meta.id, file_enc_key);
+    const file_meta = bfsp.FileMetadata.decode(file_meta_bin);
+    const chunks = file_meta.chunks;
     return _.map(chunks, (chunk: string) => {
-      return JSON.parse(chunk).id;
+      return chunk;
     });
   });
 
@@ -332,13 +329,15 @@ export async function garbage_collect(master_enc_key: string) {
 }
 
 export async function upload_file_inner(file: File, master_enc_key: string) {
+  NUM_FILES_TRANSFERRING += 1;
+  document.getElementById("progress_list_div")?.classList.remove("hidden");
   await wasm;
   const file_id = f.create_file_id();
   const file_enc_key = f.create_file_encryption_key(master_enc_key, file_id);
 
-  let chunks: Uint8Array = new Uint8Array();
+  let chunk_metas: { [key: number]: string } = {};
 
-  let sock = await efs.connect();
+  let sock = await efs.connect(null);
 
   const file_name = file.name;
 
@@ -347,6 +346,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
+  let num_chunks = 0;
   // TODO: we need to parallelize this
   for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
     const slice = await file!.slice(offset, offset + 1024 * 1024).arrayBuffer();
@@ -359,6 +359,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
     const chunk_nonce = f.chunk_nonce();
 
     const chunk_meta = bfsp.ChunkMetadata.create({
+      indice: offset / (1024 * 1024),
       id: chunk_id,
       hash: chunk_hash,
       size: chunk_len,
@@ -383,7 +384,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
         result_bin = await sock.exchange_messages(msg);
         break;
       } catch(e) {
-        sock = await efs.connect();
+        sock = await efs.connect(efs.ConnectionType.HTTP);
 
         console.warn("Error uploading chunk: " + e + ", retrying");
         if (retries == 2) {
@@ -397,19 +398,39 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
       throw new Error("Error uploading chunk: " + result.err);
     }
 
-    chunks = concatenateUint8Arrays(chunks, chunk_meta_bin);
+    num_chunks += 1;
+    chunk_metas[chunk_meta.indice] = chunk_meta.id;
     const percentage = ((offset / file.size) * 100).toFixed(2);
     file_progres_indicator.textContent = "Uploading " + file_name + ": " + percentage + "% (" + human_readable_size(offset) + ")";
   }
 
-  // We can't pass an array of arrays to Rust, so we just flatten it
-  const metadata: Uint8Array = f.create_file_metadata(file_name, file_enc_key, file_id, chunks, current_directory);
+  if (num_chunks != Object.keys(chunk_metas).length) {
+    console.log(Object.keys(chunk_metas).length);
+    throw new Error("num chunks != chunk_metas");
+  }
+
+  const now = new Date(); // Get current date/time in local time zone
+  const utcOffsetInMilliseconds = now.getTimezoneOffset() * 60 * 1000; // Convert offset to milliseconds
+  const currentUTCTimeInUnix = Math.floor((Date.now() - utcOffsetInMilliseconds) / 1000);
+
+  const metadata: bfsp.FileMetadata = bfsp.FileMetadata.create({
+    id: file_id,
+    chunks: chunk_metas,
+    fileName: file_name,
+    fileSize: file.size,
+    fileType: bfsp.FileType.BINARY,
+    createTime: currentUTCTimeInUnix,
+    modificationTime: currentUTCTimeInUnix,
+    directory: current_directory,
+  });
+  const metadata_bin: Uint8Array = bfsp.FileMetadata.encode(metadata).finish();
+  const enc_metadata = f.encrypt_file_metadata(metadata_bin, file_id, file_enc_key);
 
   // Send the metadata up to elixir
   const file_metadata_msg = bfsp.FileServerMessage_UploadFileMetadata.create({
     encryptedFileMetadata: bfsp.EncryptedFileMetadata.create({
       id: file_id,
-      metadata: metadata,
+      metadata: enc_metadata,
     })
   });
 
@@ -427,6 +448,12 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
 
   file_progres_indicator.remove();
   console.log("Uploaded file " + file.name);
+
+  NUM_FILES_TRANSFERRING -= 1;
+
+  if (NUM_FILES_TRANSFERRING == 0) {
+    document.getElementById("progress_list_div")?.classList.add("hidden");
+  }
 }
 
 
@@ -466,7 +493,7 @@ async function show_files(_entry: any) {
     listFileMetadataQuery: query,
   });
 
-  const sock = await efs.connect();
+  const sock = await efs.connect(null);
   const resp_bin = sock.exchange_messages(msg);
 
   const resp = bfsp.ListFileMetadataResp.decode(await resp_bin);
@@ -505,9 +532,11 @@ async function show_files(_entry: any) {
   }
 
   // A list of all directories in use
-  const directories = _.uniq(_.map(metas, (file_meta: bfsp.EncryptedFileMetadata) => {
-    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
-    return f.file_directory(file_meta.metadata, file_meta.id, file_enc_key!);
+  const directories = _.uniq(_.map(metas, (enc_file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, enc_file_meta.id);
+    const file_meta_bin = f.decrypt_metadata(enc_file_meta.metadata, enc_file_meta.id, file_enc_key)
+    const file_meta = bfsp.FileMetadata.decode(file_meta_bin);
+    return file_meta.directory;
   }));
   let is_subdirectory = (subdir: string[], dir: string[]) => {
     return _.isEqual(subdir.slice(0, dir.length), dir);
@@ -551,14 +580,20 @@ async function show_files(_entry: any) {
     directories_div?.appendChild(outerDiv);
   });
 
-  const metas_to_show = _.filter(metas, (file_meta: bfsp.EncryptedFileMetadata) => {
-    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
-    const directory: string[] = f.file_directory(file_meta.metadata, file_meta.id, file_enc_key!);
+  const metas_to_show = _.filter(metas, (enc_file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, enc_file_meta.id);
+    const file_meta_bin = f.decrypt_metadata(enc_file_meta.metadata, enc_file_meta.id, file_enc_key);
+    const file_meta = bfsp.FileMetadata.decode(file_meta_bin);
+
+    const directory: string[] = file_meta.directory;
     return _.isEqual(directory, current_directory);
   });
-  _.forEach(metas_to_show, (file_meta: bfsp.EncryptedFileMetadata) => {
-    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
-    let name = f.file_name(file_meta.metadata, file_meta.id, file_enc_key!);
+  _.forEach(metas_to_show, (enc_file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, enc_file_meta.id);
+    const file_meta_bin = f.decrypt_metadata(enc_file_meta.metadata, enc_file_meta.id, file_enc_key);
+    const file_meta = bfsp.FileMetadata.decode(file_meta_bin);
+
+    let name = file_meta.fileName;
 
     // Create the outer div element
     const outerDiv = document.createElement('div');
@@ -624,10 +659,10 @@ export async function create_directory_input() {
     create_directory_submit_input?.classList.add("hidden");
     create_directory_input?.classList.add("hidden");
     create_directory_button?.classList.remove("hidden");
-    create_directory_input.value = "";
 
 
     let directory: string[] = current_directory.concat([create_directory_input.value]);
+    create_directory_input.value = "";
     await enter_directory(directory);
   };
 
@@ -651,7 +686,10 @@ export async function create_directory_input() {
 }
 
 async function enter_directory(directory: string[]) {
-  current_directory = directory;
+  const filtered_directory: string[] = _.filter(directory, (dir_part) => {
+    return dir_part != "";
+  });
+  current_directory = filtered_directory;
   await show_files(null);
 }
 

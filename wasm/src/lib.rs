@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::FromStr, sync::RwLock};
 
 use bfsp::{
-    hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey, EncryptionNonce,
-    FileMetadata, FileMetadataVersion, FileType, Message,
+    hash_chunk as bfsp_hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey,
+    EncryptionNonce, FileMetadata, FileType, Message,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn chunk_hash(chunk: &[u8]) -> Vec<u8> {
-    hash_chunk(chunk).to_bytes().to_vec()
+    bfsp_hash_chunk(chunk).to_bytes().to_vec()
 }
 
 #[wasm_bindgen]
@@ -61,10 +61,8 @@ pub fn create_file_metadata(
         chunks.push(ChunkMetadata::decode(chunk_meta).map_err(|err| err.to_string())?);
     }
     let date_time = OffsetDateTime::now_utc();
-    let date_time = PrimitiveDateTime::new(date_time.date(), date_time.time());
 
     let meta = FileMetadata {
-        version: FileMetadataVersion::V1,
         id: file_id,
         chunks: chunks
             .iter()
@@ -76,11 +74,11 @@ pub fn create_file_metadata(
                     format!("Error converting chunk indice to u64: {err:?} for chunk: {chunk:?}")
                 })?;
 
-                Ok((chunk_indice, chunk_id))
+                Ok((chunk_indice, chunk_id.to_string()))
             })
             .collect::<Result<HashMap<_, _>, String>>()?,
         file_name,
-        file_type: FileType::Binary,
+        file_type: FileType::Binary.into(),
         file_size: chunks
             .iter()
             .map(|chunk| {
@@ -88,10 +86,9 @@ pub fn create_file_metadata(
                 size
             })
             .sum(),
-        create_time: date_time,
-        modification_time: date_time,
-        directory: String::new(),
-        directory_vec: Some(directory),
+        create_time: date_time.unix_timestamp(),
+        modification_time: date_time.unix_timestamp(),
+        directory,
     };
     Ok(meta.encrypt_serialize(&enc_key, nonce)?)
 }
@@ -164,18 +161,12 @@ pub fn create_file_id() -> String {
     Uuid::new_v4().to_string()
 }
 
-static DECRYPTED_METADATA: Lazy<RwLock<HashMap<Vec<u8>, FileMetadata>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
-
-fn decrypt_metadata(
+#[wasm_bindgen]
+pub fn decrypt_metadata(
     encrypted_metadata: Vec<u8>,
     nonce: String,
     enc_key: String,
-) -> Result<FileMetadata, String> {
-    if let Some(meta) = DECRYPTED_METADATA.read().unwrap().get(&encrypted_metadata) {
-        return Ok(meta.clone());
-    }
-
+) -> Result<Vec<u8>, String> {
     let enc_key = EncryptionKey::try_from(enc_key.as_str())
         .map_err(|err| format!("Error deserializing key: {err}"))?;
 
@@ -190,95 +181,27 @@ fn decrypt_metadata(
     let meta = FileMetadata::decrypt_deserialize(&enc_key, nonce, encrypted_metadata.clone())
         .map_err(|err| err.to_string())?;
 
-    DECRYPTED_METADATA
-        .write()
-        .unwrap()
-        .insert(encrypted_metadata.clone(), meta.clone());
-
-    Ok(meta)
+    Ok(meta.encode_to_vec())
 }
 
 #[wasm_bindgen]
-pub fn file_name(
-    encrypted_metadata: Vec<u8>,
+pub fn encrypt_file_metadata(
+    metadata: Vec<u8>,
     nonce: String,
     enc_key: String,
-) -> Result<String, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    Ok(meta.file_name)
-}
+) -> Result<Vec<u8>, String> {
+    let metadata = FileMetadata::decode(metadata.as_slice()).unwrap();
+    let enc_key = EncryptionKey::try_from(enc_key.as_str())
+        .map_err(|err| format!("Error deserializing key: {err}"))?;
+    let nonce_uuid = Uuid::from_str(&nonce).map_err(|err| format!("Error parsing nonce: {err}"))?;
+    let mut nonce_bytes = nonce_uuid.as_bytes().to_vec();
+    // Pad nonce to 16 bytes
+    nonce_bytes.extend_from_slice(&[0; 8]);
 
-#[wasm_bindgen]
-pub fn file_type(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<String, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    Ok(meta.file_type.to_string())
-}
+    let nonce = EncryptionNonce::try_from(nonce_bytes)
+        .map_err(|err| format!("Error deserializing nonce: {err}"))?;
 
-#[wasm_bindgen]
-pub fn file_chunks(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<Vec<String>, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-
-    Ok(meta
-        .chunks
-        .iter()
-        .map(|(chunk_indice, chunk_id)| {
-            serde_json::to_string(&FileChunks {
-                indice: *chunk_indice,
-                id: chunk_id.to_string(),
-            })
-            .unwrap()
-        })
-        .collect())
-}
-
-#[wasm_bindgen]
-pub fn file_size(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<u64, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    Ok(meta.file_size)
-}
-
-#[wasm_bindgen]
-pub fn file_create_date(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<String, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    let (year, month, day) = meta.create_time.to_calendar_date();
-    Ok(format!("{} {}, {}", day, month, year))
-}
-
-#[wasm_bindgen]
-pub fn file_modification_date(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<String, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    let (year, month, day) = meta.create_time.to_calendar_date();
-    Ok(format!("{} {}, {}", day, month, year))
-}
-
-#[wasm_bindgen]
-pub fn file_directory(
-    encrypted_metadata: Vec<u8>,
-    nonce: String,
-    enc_key: String,
-) -> Result<Vec<String>, String> {
-    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
-    Ok(meta.directory_vec.unwrap_or_else(|| Vec::new()))
+    metadata.encrypt_serialize(&enc_key, nonce)
 }
 
 #[wasm_bindgen]
