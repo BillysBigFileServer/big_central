@@ -346,6 +346,8 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
 
   document.getElementById("progress-list")?.appendChild(file_progres_indicator);
 
+  const dir_as_of_upload = current_directory;
+
   let num_chunks = 0;
   // TODO: we need to parallelize this
   for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
@@ -421,7 +423,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
     fileType: bfsp.FileType.BINARY,
     createTime: currentUTCTimeInUnix,
     modificationTime: currentUTCTimeInUnix,
-    directory: current_directory,
+    directory: dir_as_of_upload,
   });
   const metadata_bin: Uint8Array = bfsp.FileMetadata.encode(metadata).finish();
   const enc_metadata = f.encrypt_file_metadata(metadata_bin, file_id, file_enc_key);
@@ -532,12 +534,14 @@ async function show_files(_entry: any) {
   }
 
   // A list of all directories in use
-  const directories = _.uniq(_.map(metas, (enc_file_meta: bfsp.EncryptedFileMetadata) => {
+  const directories: string[][] = _.uniqWith(_.map(metas, (enc_file_meta: bfsp.EncryptedFileMetadata) => {
     const file_enc_key = f.create_file_encryption_key(master_enc_key, enc_file_meta.id);
     const file_meta_bin = f.decrypt_metadata(enc_file_meta.metadata, enc_file_meta.id, file_enc_key)
     const file_meta = bfsp.FileMetadata.decode(file_meta_bin);
     return file_meta.directory;
-  }));
+  }), (dir: string[], dir2: string[]) => {
+    return directory_string(dir) == directory_string(dir2);
+  });
   let is_subdirectory = (subdir: string[], dir: string[]) => {
     return _.isEqual(subdir.slice(0, dir.length), dir);
   };
@@ -545,7 +549,6 @@ async function show_files(_entry: any) {
     if (_.isEqual(split_directory, current_directory) || split_directory.length == 0 || split_directory.length > current_directory.length + 1 || !is_subdirectory(split_directory, current_directory)) {
       return;
     }
-
     // Create the outer div element
     const outerDiv = document.createElement('div');
     outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer');
