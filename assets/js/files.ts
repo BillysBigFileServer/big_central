@@ -92,8 +92,11 @@ async function list_chunks(file_id: string, file_metadata: Uint8Array): Promise<
   return chunk_objs;
 }
 
+let num_being_downloaded = 0;
 async function download_file(e: any) {
   let file_id: string = e.target.id;
+
+  document.getElementById("progress_list_div")?.classList.remove("hidden");
 
   await wasm;
   const file_metadata_result = await get_file_metadata(file_id);
@@ -103,7 +106,13 @@ async function download_file(e: any) {
   }
   const chunk_objs = await list_chunks(file_id, file_metadata_result.value);
 
+  num_being_downloaded += 1;
   await save_file_in_memory(file_metadata_result.value, file_id, chunk_objs);
+  num_being_downloaded -= 1;
+
+  if (num_being_downloaded == 0) {
+    document.getElementById("progress_list_div")?.classList.add("hidden");
+  }
 }
 
 // Firefox doesn't support the naive file system api, so we just save the file in memory and pray it fits
@@ -317,13 +326,9 @@ export async function garbage_collect(master_enc_key: string) {
   const chunk_delete_msg = bfsp.FileServerMessage.create({
     deleteChunksQuery: chunk_delete_query,
   });
-  const chunk_delete_resp_bin = await sock.exchange_messages(chunk_delete_msg);
-  const chunk_delete_resp = bfsp.DeleteChunksResp.decode(chunk_delete_resp_bin);
-  if (chunk_delete_resp.err != undefined) {
-    throw new Error("Error deleting chunks: " + chunk_delete_resp);
-  }
+  // We don't await since we don't care about the result. we just don't want to slow down page loads
+  sock.exchange_messages(chunk_delete_msg);
 
-  console.log("Deleted " + chunks_to_delete.length + " chunks");
 }
 
 export async function upload_file_inner(file: File, master_enc_key: string) {
@@ -353,11 +358,8 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
     const chunk_len = view.length;
     const chunk_nonce = f.chunk_nonce();
 
-    // Log the percentage of the file that has been read, like "10%"
-    const indice = offset / (1024 * 1024);
     const chunk_meta = bfsp.ChunkMetadata.create({
       id: chunk_id,
-      indice: indice,
       hash: chunk_hash,
       size: chunk_len,
       nonce: chunk_nonce,
@@ -401,7 +403,7 @@ export async function upload_file_inner(file: File, master_enc_key: string) {
   }
 
   // We can't pass an array of arrays to Rust, so we just flatten it
-  const metadata: Uint8Array = f.create_file_metadata(file_name, file_enc_key, file_id, chunks);
+  const metadata: Uint8Array = f.create_file_metadata(file_name, file_enc_key, file_id, chunks, current_directory);
 
   // Send the metadata up to elixir
   const file_metadata_msg = bfsp.FileServerMessage_UploadFileMetadata.create({
@@ -445,6 +447,16 @@ export async function upload_file(_hook: ViewHook) {
   await show_files(null);
 }
 
+let current_directory: string[] = [];
+
+function directory_string(directory: string[]) {
+  if (directory.length == 0) {
+    return "/";
+  }
+  const folder_icon = '<div class="flex"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>';
+  return folder_icon + directory.join("/") + "</div>";
+}
+
 async function show_files(_entry: any) {
   console.log("showing files");
   let query = bfsp.FileServerMessage_ListFileMetadataQuery.create({
@@ -462,20 +474,91 @@ async function show_files(_entry: any) {
   const metas: any = resp.metadatas?.metadatas!;
   await wasm;
 
-  const master_enc_key = localStorage.getItem("encryption_key");
+  const master_enc_key = localStorage.getItem("encryption_key")!;
   if (master_enc_key == null) {
     window.location.replace("/login");
   }
 
-  let div = document.getElementById("files");
-  div?.replaceChildren();
+  let directories_div = document.getElementById("directories");
+  directories_div?.replaceChildren();
 
-  _.forEach(metas, (file_meta: bfsp.EncryptedFileMetadata, file_id: string) => {
-    const file_enc_key = f.create_file_encryption_key(master_enc_key!, file_id);
+  let files_div = document.getElementById("files");
+  files_div?.replaceChildren();
+
+  if (current_directory.length > 0) {
+    const outerDiv = document.createElement('div');
+    outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer');
+    outerDiv.addEventListener('click', async () => {
+      await enter_directory(current_directory.slice(0, current_directory.length - 1));
+    });
+    const flexContainerDiv = document.createElement('div');
+    flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
+    const innerFlexDiv = document.createElement('div');
+    innerFlexDiv.classList.add('flex', 'items-center', 'space-x-4');
+    const heading = document.createElement('h2');
+    heading.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/></svg>';
+    heading.classList.add('text-sm', 'font-semibold');
+    innerFlexDiv.appendChild(heading);
+    flexContainerDiv.appendChild(innerFlexDiv);
+    outerDiv.appendChild(flexContainerDiv);
+    directories_div?.appendChild(outerDiv);
+  }
+
+  // A list of all directories in use
+  const directories = _.uniq(_.map(metas, (file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
+    return f.file_directory(file_meta.metadata, file_meta.id, file_enc_key!);
+  }));
+  let is_subdirectory = (subdir: string[], dir: string[]) => {
+    return _.isEqual(subdir.slice(0, dir.length), dir);
+  };
+  _.forEach(directories, (split_directory: string[]) => {
+    if (_.isEqual(split_directory, current_directory) || split_directory.length == 0 || split_directory.length > current_directory.length + 1 || !is_subdirectory(split_directory, current_directory)) {
+      return;
+    }
+
+    // Create the outer div element
+    const outerDiv = document.createElement('div');
+    outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer');
+    outerDiv.addEventListener('click', async () => {
+      await enter_directory(split_directory);
+    });
+
+    // Create the flex container div
+    const flexContainerDiv = document.createElement('div');
+    flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
+
+    // Create the inner flex container div
+    const innerFlexDiv = document.createElement('div');
+    innerFlexDiv.classList.add('flex', 'items-center', 'space-x-4');
+
+    // Create the heading element
+    const heading = document.createElement('h2');
+    heading.innerHTML = directory_string(split_directory);
+    heading.classList.add('text-md', 'font-semibold', 'text-blue-500');
+
+    // Create the button element
+    // Append the heading to the inner flex container div
+    innerFlexDiv.appendChild(heading);
+
+    // Append the inner flex container div and the button to the flex container div
+    flexContainerDiv.appendChild(innerFlexDiv);
+
+    // Append the flex container div to the outer div
+    outerDiv.appendChild(flexContainerDiv);
+
+    // Append the outer div to the files div
+    directories_div?.appendChild(outerDiv);
+  });
+
+  const metas_to_show = _.filter(metas, (file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
+    const directory: string[] = f.file_directory(file_meta.metadata, file_meta.id, file_enc_key!);
+    return _.isEqual(directory, current_directory);
+  });
+  _.forEach(metas_to_show, (file_meta: bfsp.EncryptedFileMetadata) => {
+    const file_enc_key = f.create_file_encryption_key(master_enc_key, file_meta.id);
     let name = f.file_name(file_meta.metadata, file_meta.id, file_enc_key!);
-    let size = f.file_size(file_meta.metadata, file_meta.id, file_enc_key!);
-    let created = f.file_create_date(file_meta.metadata, file_meta.id, file_enc_key!);
-    let modified = f.file_modification_date(file_meta.metadata, file_meta.id, file_enc_key!);
 
     // Create the outer div element
     const outerDiv = document.createElement('div');
@@ -505,7 +588,7 @@ async function show_files(_entry: any) {
     downloadButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>';
     downloadButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
     downloadButton.addEventListener('click', () => {
-      download_file({ target: { id: file_id } });
+      download_file({ target: { id: file_meta.id } });
     });
 
 
@@ -515,7 +598,7 @@ async function show_files(_entry: any) {
     deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
     deleteButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
     deleteButton.addEventListener('click', async () => {
-      await delete_file(file_id);
+      await delete_file(file_meta.id);
       await show_files(null);
     });
 
@@ -525,29 +608,53 @@ async function show_files(_entry: any) {
     flexContainerDiv.appendChild(innerFlexDiv);
     flexContainerDiv.appendChild(button);
 
-    // Create the paragraphs
-    const paragraphs = [
-        'File size: ' + human_readable_size(Number(size)),
-        // TODO
-        'Created: ' + created,
-        'Last modified: ' + modified
-    ];
-
-    // Create and append the paragraphs to the outer div
-    paragraphs.forEach(text => {
-        const paragraph = document.createElement('p');
-        paragraph.textContent = text;
-        paragraph.classList.add('text-sm', 'text-gray-600');
-        outerDiv.appendChild(paragraph);
-    });
-
     // Append the flex container div to the outer div
     outerDiv.appendChild(flexContainerDiv);
 
     // Append the outer div to the files div
-    div?.appendChild(outerDiv);
+    files_div?.appendChild(outerDiv);
   });
 }
+
+export async function create_directory_input() {
+  const create_directory_button = document.getElementById("create_directory_button");
+  create_directory_button?.classList.add("hidden");
+
+  const finish_creating_directory = async () => {
+    create_directory_submit_input?.classList.add("hidden");
+    create_directory_input?.classList.add("hidden");
+    create_directory_button?.classList.remove("hidden");
+    create_directory_input.value = "";
+
+
+    let directory: string[] = current_directory.concat([create_directory_input.value]);
+    await enter_directory(directory);
+  };
+
+  const create_directory_submit_input = document.getElementById("create_directory_submit_input");
+  create_directory_submit_input?.classList.remove("hidden");
+  create_directory_submit_input?.addEventListener("click", finish_creating_directory);
+
+
+  const create_directory_input: HTMLInputElement = document.getElementById("create_directory_input") as HTMLInputElement;
+  create_directory_input?.classList.remove("hidden");
+  create_directory_input?.focus();
+
+  create_directory_input.addEventListener("keypress", async (e) => {
+    if (e.key == "Enter") {
+      e.preventDefault();
+      await finish_creating_directory();
+    }
+  });
+
+
+}
+
+async function enter_directory(directory: string[]) {
+  current_directory = directory;
+  await show_files(null);
+}
+
 
 async function set_encryption_key(password: string) {
   const key = await generate_encryption_key(password);

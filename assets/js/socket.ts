@@ -1,6 +1,6 @@
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {upload_file, upload_directory} from "./files"
+import {upload_file, upload_directory, create_directory_input} from "./files"
 
 let Hooks: any = {};
 Hooks.UploadFileHook = {
@@ -18,6 +18,14 @@ Hooks.UploadDirectoryHook = {
         });
     }
 };
+
+Hooks.CreateDirectoryHook = {
+    mounted() {
+        this.el.addEventListener("click", (_e: any) => {
+            create_directory_input();
+        });
+    }
+}
 
 let csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content");
 

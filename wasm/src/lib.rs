@@ -36,7 +36,7 @@ pub fn create_file_metadata(
     key: &str,
     file_id: String,
     chunk_bytes: &[u8],
-    directory: Option<String>,
+    directory: Vec<String>,
 ) -> Result<Vec<u8>, String> {
     let enc_key = EncryptionKey::try_from(key).map_err(|err| err.to_string())?;
 
@@ -90,7 +90,8 @@ pub fn create_file_metadata(
             .sum(),
         create_time: date_time,
         modification_time: date_time,
-        directory: directory.unwrap_or_else(|| "/".to_string()),
+        directory: String::new(),
+        directory_vec: Some(directory),
     };
     Ok(meta.encrypt_serialize(&enc_key, nonce)?)
 }
@@ -268,6 +269,16 @@ pub fn file_modification_date(
     let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
     let (year, month, day) = meta.create_time.to_calendar_date();
     Ok(format!("{} {}, {}", day, month, year))
+}
+
+#[wasm_bindgen]
+pub fn file_directory(
+    encrypted_metadata: Vec<u8>,
+    nonce: String,
+    enc_key: String,
+) -> Result<Vec<String>, String> {
+    let meta = decrypt_metadata(encrypted_metadata, nonce, enc_key)?;
+    Ok(meta.directory_vec.unwrap_or_else(|| Vec::new()))
 }
 
 #[wasm_bindgen]

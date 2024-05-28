@@ -2,7 +2,7 @@ import _ from "lodash";
 import * as bfsp from "./bfsp";
 import { WebConn, concatenateUint8Arrays, prep_message, get_token } from "./efs_wc";
 
-//const wt_url = "https://192.168.7.69:9999/efs";
+//const wt_url = "https://localhost:9999/efs";
 const wt_url = "https://big-file-server.fly.dev:9999/efs";
 
 export var transport: WebTransport | null = null;

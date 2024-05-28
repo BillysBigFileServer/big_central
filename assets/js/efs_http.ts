@@ -1,8 +1,8 @@
 import * as bfsp from "./bfsp";
 import { WebConn, prep_message, get_token } from "./efs_wc";
 
-const http_url = "http://localhost:9998/api";
-//const http_url = "https://big-file-server.fly.dev:9998/api"
+//const http_url = "http://localhost:9998/api";
+const http_url = "https://big-file-server.fly.dev:9998/api"
 
 // HTTP stream implementation (separate class)
 export class HttpStream implements WebConn {
