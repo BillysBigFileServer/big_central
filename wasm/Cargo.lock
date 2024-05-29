@@ -2101,9 +2101,6 @@ version = "0.1.0"
 dependencies = [
  "bfsp",
  "console_error_panic_hook",
- "once_cell",
- "serde",
- "serde_json",
  "time",
  "wasm-bindgen",
 ]

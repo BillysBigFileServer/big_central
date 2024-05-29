@@ -1,11 +1,10 @@
 use std::{collections::HashMap, str::FromStr, sync::RwLock};
 
+use bfsp::cli::{FileMetadata, FileType};
 use bfsp::{
     hash_chunk as bfsp_hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey,
-    EncryptionNonce, FileMetadata, FileType, Message,
+    EncryptionNonce, Message,
 };
-use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 use wasm_bindgen::prelude::*;
 
@@ -101,12 +100,6 @@ pub fn base64_encode(bytes: &[u8]) -> String {
 #[wasm_bindgen]
 pub fn base64_decode(data: &str) -> Vec<u8> {
     bfsp::base64_decode(data).unwrap()
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct FileChunks {
-    indice: u64,
-    id: String,
 }
 
 #[wasm_bindgen]
