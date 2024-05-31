@@ -38,10 +38,11 @@ defmodule BigCentralWeb.Router do
     end
   end
 
-  scope "/api", BigCentralWeb do
+  scope "/api/v1", BigCentralWeb do
     pipe_through :api
 
     get "/dl_token", ApiController, :show
+    get "/public_key", ApiController, :public_key
   end
 
   scope "/", BigCentralWeb do
@@ -61,6 +62,7 @@ defmodule BigCentralWeb.Router do
       live "/signup", UserLive.Signup
       live "/login", UserLive.Login
       live "/auth_app_success", UserLive.AuthAppSuccess
+      live "/files/view_file", FilesLive.ViewFile
     end
 
     get "/users/logout", UserSessionController, :delete

@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::{collections::HashMap, str::FromStr, sync::RwLock};
 
 use bfsp::cli::{FileMetadata, FileType};
@@ -5,6 +6,9 @@ use bfsp::{
     hash_chunk as bfsp_hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey,
     EncryptionNonce, Message,
 };
+use biscuit_auth::builder::{fact, set, string};
+use biscuit_auth::macros::check;
+use biscuit_auth::{Biscuit, PublicKey};
 use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 use wasm_bindgen::prelude::*;
 
@@ -205,4 +209,30 @@ pub fn number_to_bytes(num: u64) -> Vec<u8> {
 #[wasm_bindgen]
 pub fn hash_password(password: &str) -> String {
     bfsp::hash_password(password)
+}
+
+#[wasm_bindgen]
+pub fn restrict_token_to_file(
+    token: String,
+    public_key: String,
+    file_id: String,
+) -> Result<String, String> {
+    let public_key = PublicKey::from_bytes_hex(&public_key)
+        .map_err(|err| format!("Error getting public key: {err:?}"))?;
+    let token = Biscuit::from_base64(token, public_key)
+        .map_err(|err| format!("Error deserializing biscuit: {err:?}"))?;
+
+    let fact_btree_set: BTreeSet<_> = BTreeSet::from_iter(vec![string(&file_id)].into_iter());
+
+    Ok(token
+        .append(biscuit_auth::builder::BlockBuilder {
+            facts: vec![fact("allowed_file_ids", &[set(fact_btree_set)])],
+            checks: vec![check!("check all allowed_file_ids($allowed_file_ids), file_ids($file_ids), $allowed_file_ids.contains($file_ids)")],
+            ..Default::default()
+        })
+        .unwrap()
+        .seal()
+        .unwrap()
+        .to_base64()
+        .unwrap())
 }

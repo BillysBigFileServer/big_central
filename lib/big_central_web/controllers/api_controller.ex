@@ -1,6 +1,7 @@
 defmodule BigCentralWeb.ApiController do
   alias BigCentral.Users.Validation
-  alias BigCentral.Tokens.DLTokens
+  alias BigCentral.Tokens.DLTokensstring
+
   use BigCentralWeb, :controller
 
   def show(conn, params) do
@@ -23,5 +24,14 @@ defmodule BigCentralWeb.ApiController do
       nil -> text(conn, "no token found")
       _ -> text(conn, token)
     end
+  end
+
+  def public_key(conn, _params) do
+    token_private_key =
+      System.get_env("TOKEN_PRIVATE_KEY") ||
+        "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+
+    public_key = token_private_key |> Biscuit.public_key_from_private()
+    text(conn, public_key)
   end
 end

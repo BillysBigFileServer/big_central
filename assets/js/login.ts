@@ -1,9 +1,8 @@
 import { set_encryption_key } from "./files";
 import init, * as f from "./wasm";
 
-const wasm = init("/wasm/wasm_bg.wasm");
-
 export async function prep_login(event: any) {
+    const wasm = init("/wasm/wasm_bg.wasm")
     event.preventDefault();
 
     const form: HTMLFormElement = event.target;

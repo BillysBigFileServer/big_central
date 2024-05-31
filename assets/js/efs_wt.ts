@@ -2,8 +2,12 @@ import _ from "lodash";
 import * as bfsp from "./bfsp";
 import { WebConn, concatenateUint8Arrays, prep_message, get_token } from "./efs_wc";
 
-//const wt_url = "https://localhost:9999/efs";
-const wt_url = "https://big-file-server.fly.dev:9999/efs";
+let wt_url = "https://big-file-server.fly.dev:9999/efs";
+const url = new URL(document.URL);
+if (url.hostname == "localhost") {
+  wt_url = "https://localhost:9999/efs";
+}
+
 
 export var transport: WebTransport | null = null;
 
@@ -54,9 +58,9 @@ class WebTransportStream implements WebConn {
     this.reader = stream.readable.getReader();
   }
 
-  async exchange_messages(msg: bfsp.FileServerMessage): Promise<Uint8Array> {
+  async exchange_messages(msg: bfsp.FileServerMessage, token: string): Promise<Uint8Array> {
     let resp_bin = new Uint8Array;
-    const msg_bin = prep_message(msg, get_token());
+    const msg_bin = prep_message(msg, token);
 
     try {
       await this.writer?.ready;

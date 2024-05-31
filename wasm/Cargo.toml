@@ -14,3 +14,4 @@ wasm-bindgen = { version = "=0.2.91" }
 bfsp = { path = "./bfsp/" }
 time = { version = "*", features = ["macros", "wasm-bindgen"] }
 console_error_panic_hook = "0.1.7"
+biscuit-auth = { version = "4", features = ["wasm"] }

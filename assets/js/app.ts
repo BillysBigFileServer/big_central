@@ -21,10 +21,12 @@ import "phoenix_html"
 import topbar from "topbar"
 
 import { show_files } from "./files";
+import { view_file } from "./file_view";
 import { liveSocket } from "./socket"
 import { validate_email, validate_password } from "./auth";
 import { prep_signup } from "./signup";
 import { prep_login } from "./login";
+import { get_token } from "./efs_wc";
 
 
 // Show progress bar on live navigation and form submits
@@ -38,7 +40,8 @@ document.getElementById("password")?.addEventListener("input", validate_password
 document.getElementById("signup_form")?.addEventListener("submit", prep_signup);
 document.getElementById("login_form")?.addEventListener("submit", prep_login);
 
-window.addEventListener("phx:show-files", show_files)
+window.addEventListener("phx:show-files", async () => {show_files(await get_token(null, null))})
+window.addEventListener("phx:view-file", view_file)
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

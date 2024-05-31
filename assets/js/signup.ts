@@ -1,8 +1,8 @@
 import init, * as f from "./wasm";
 
-const wasm = init("/wasm/wasm_bg.wasm");
 
 export async function prep_signup(event: any) {
+    const wasm = init("/wasm/wasm_bg.wasm");
     event.preventDefault();
 
     const form: HTMLFormElement = event.target;

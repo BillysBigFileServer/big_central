@@ -1,7 +1,9 @@
 import * as bfsp from "./bfsp";
+import init, * as f from "./wasm";
+
 // WebConn interface with a single exchange_messages function
 export interface WebConn {
-  exchange_messages(msg: bfsp.FileServerMessage): Promise<Uint8Array>;
+  exchange_messages(msg: bfsp.FileServerMessage, token: string): Promise<Uint8Array>;
 }
 
 export function concatenateUint8Arrays(array1: Uint8Array, array2: Uint8Array): Uint8Array {
@@ -15,15 +17,26 @@ export function concatenateUint8Arrays(array1: Uint8Array, array2: Uint8Array): 
 }
 
 export function prep_message(msg: bfsp.FileServerMessage, token: string): Uint8Array {
-  msg.auth = get_auth(token);
+  if (msg.auth == null && (token == null || token.length == 0)) {
+    throw new Error("Token is empty");
+  } else if (msg.auth == null) {
+    msg.auth = get_auth(token);
+  }
 
   let msg_bin = bfsp.FileServerMessage.encode(msg).finish();
   return prepend_len(msg_bin);
 }
 
-export function get_token(): string {
+export async function get_token(file_id: string | null, public_key: string | null): Promise<string> {
+  await init("/wasm/wasm_bg.wasm");;
   const token = document.getElementById("token")?.getAttribute("value");
-  return token!;
+
+  if (file_id == null) {
+    return token!;
+  } else {
+    return f.restrict_token_to_file(token!, public_key!, file_id!);
+  }
+
 }
 
 // prepend_len prepends the 4 byte little endian length of the message to the message
