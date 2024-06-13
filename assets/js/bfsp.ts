@@ -26,6 +26,7 @@ export interface FileServerMessage {
   listFileMetadataQuery?: FileServerMessage_ListFileMetadataQuery | undefined;
   listChunkMetadataQuery?: FileServerMessage_ListChunkMetadataQuery | undefined;
   deleteFileMetadataQuery?: FileServerMessage_DeleteFileMetadataQuery | undefined;
+  getUsageQuery?: FileServerMessage_GetUsageQuery | undefined;
 }
 
 export interface FileServerMessage_UploadChunk {
@@ -67,6 +68,9 @@ export interface FileServerMessage_ListFileMetadataQuery {
 
 export interface FileServerMessage_DeleteFileMetadataQuery {
   id: string;
+}
+
+export interface FileServerMessage_GetUsageQuery {
 }
 
 export interface UploadChunkResp {
@@ -140,6 +144,15 @@ export interface ListChunkMetadataResp_ChunkMetadatas {
 export interface ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry {
   key: string;
   value: ChunkMetadata | undefined;
+}
+
+export interface GetUsageResp {
+  usage?: GetUsageResp_Usage | undefined;
+  err?: string | undefined;
+}
+
+export interface GetUsageResp_Usage {
+  totalUsage: number;
 }
 
 export interface ChunkMetadata {
@@ -236,6 +249,7 @@ function createBaseFileServerMessage(): FileServerMessage {
     listFileMetadataQuery: undefined,
     listChunkMetadataQuery: undefined,
     deleteFileMetadataQuery: undefined,
+    getUsageQuery: undefined,
   };
 }
 
@@ -273,6 +287,9 @@ export const FileServerMessage = {
     if (message.deleteFileMetadataQuery !== undefined) {
       FileServerMessage_DeleteFileMetadataQuery.encode(message.deleteFileMetadataQuery, writer.uint32(82).fork())
         .ldelim();
+    }
+    if (message.getUsageQuery !== undefined) {
+      FileServerMessage_GetUsageQuery.encode(message.getUsageQuery, writer.uint32(90).fork()).ldelim();
     }
     return writer;
   },
@@ -357,6 +374,13 @@ export const FileServerMessage = {
 
           message.deleteFileMetadataQuery = FileServerMessage_DeleteFileMetadataQuery.decode(reader, reader.uint32());
           continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.getUsageQuery = FileServerMessage_GetUsageQuery.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -394,6 +418,9 @@ export const FileServerMessage = {
       deleteFileMetadataQuery: isSet(object.deleteFileMetadataQuery)
         ? FileServerMessage_DeleteFileMetadataQuery.fromJSON(object.deleteFileMetadataQuery)
         : undefined,
+      getUsageQuery: isSet(object.getUsageQuery)
+        ? FileServerMessage_GetUsageQuery.fromJSON(object.getUsageQuery)
+        : undefined,
     };
   },
 
@@ -430,6 +457,9 @@ export const FileServerMessage = {
     }
     if (message.deleteFileMetadataQuery !== undefined) {
       obj.deleteFileMetadataQuery = FileServerMessage_DeleteFileMetadataQuery.toJSON(message.deleteFileMetadataQuery);
+    }
+    if (message.getUsageQuery !== undefined) {
+      obj.getUsageQuery = FileServerMessage_GetUsageQuery.toJSON(message.getUsageQuery);
     }
     return obj;
   },
@@ -473,6 +503,9 @@ export const FileServerMessage = {
       (object.deleteFileMetadataQuery !== undefined && object.deleteFileMetadataQuery !== null)
         ? FileServerMessage_DeleteFileMetadataQuery.fromPartial(object.deleteFileMetadataQuery)
         : undefined;
+    message.getUsageQuery = (object.getUsageQuery !== undefined && object.getUsageQuery !== null)
+      ? FileServerMessage_GetUsageQuery.fromPartial(object.getUsageQuery)
+      : undefined;
     return message;
   },
 };
@@ -1111,6 +1144,49 @@ export const FileServerMessage_DeleteFileMetadataQuery = {
   ): FileServerMessage_DeleteFileMetadataQuery {
     const message = createBaseFileServerMessage_DeleteFileMetadataQuery();
     message.id = object.id ?? "";
+    return message;
+  },
+};
+
+function createBaseFileServerMessage_GetUsageQuery(): FileServerMessage_GetUsageQuery {
+  return {};
+}
+
+export const FileServerMessage_GetUsageQuery = {
+  encode(_: FileServerMessage_GetUsageQuery, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): FileServerMessage_GetUsageQuery {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFileServerMessage_GetUsageQuery();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): FileServerMessage_GetUsageQuery {
+    return {};
+  },
+
+  toJSON(_: FileServerMessage_GetUsageQuery): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FileServerMessage_GetUsageQuery>, I>>(base?: I): FileServerMessage_GetUsageQuery {
+    return FileServerMessage_GetUsageQuery.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FileServerMessage_GetUsageQuery>, I>>(_: I): FileServerMessage_GetUsageQuery {
+    const message = createBaseFileServerMessage_GetUsageQuery();
     return message;
   },
 };
@@ -2279,6 +2355,139 @@ export const ListChunkMetadataResp_ChunkMetadatas_MetadatasEntry = {
     message.value = (object.value !== undefined && object.value !== null)
       ? ChunkMetadata.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseGetUsageResp(): GetUsageResp {
+  return { usage: undefined, err: undefined };
+}
+
+export const GetUsageResp = {
+  encode(message: GetUsageResp, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.usage !== undefined) {
+      GetUsageResp_Usage.encode(message.usage, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.err !== undefined) {
+      writer.uint32(18).string(message.err);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetUsageResp {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetUsageResp();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.usage = GetUsageResp_Usage.decode(reader, reader.uint32());
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.err = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetUsageResp {
+    return {
+      usage: isSet(object.usage) ? GetUsageResp_Usage.fromJSON(object.usage) : undefined,
+      err: isSet(object.err) ? globalThis.String(object.err) : undefined,
+    };
+  },
+
+  toJSON(message: GetUsageResp): unknown {
+    const obj: any = {};
+    if (message.usage !== undefined) {
+      obj.usage = GetUsageResp_Usage.toJSON(message.usage);
+    }
+    if (message.err !== undefined) {
+      obj.err = message.err;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetUsageResp>, I>>(base?: I): GetUsageResp {
+    return GetUsageResp.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetUsageResp>, I>>(object: I): GetUsageResp {
+    const message = createBaseGetUsageResp();
+    message.usage = (object.usage !== undefined && object.usage !== null)
+      ? GetUsageResp_Usage.fromPartial(object.usage)
+      : undefined;
+    message.err = object.err ?? undefined;
+    return message;
+  },
+};
+
+function createBaseGetUsageResp_Usage(): GetUsageResp_Usage {
+  return { totalUsage: 0 };
+}
+
+export const GetUsageResp_Usage = {
+  encode(message: GetUsageResp_Usage, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.totalUsage !== 0) {
+      writer.uint32(8).uint64(message.totalUsage);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetUsageResp_Usage {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetUsageResp_Usage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.totalUsage = longToNumber(reader.uint64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetUsageResp_Usage {
+    return { totalUsage: isSet(object.totalUsage) ? globalThis.Number(object.totalUsage) : 0 };
+  },
+
+  toJSON(message: GetUsageResp_Usage): unknown {
+    const obj: any = {};
+    if (message.totalUsage !== 0) {
+      obj.totalUsage = Math.round(message.totalUsage);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetUsageResp_Usage>, I>>(base?: I): GetUsageResp_Usage {
+    return GetUsageResp_Usage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetUsageResp_Usage>, I>>(object: I): GetUsageResp_Usage {
+    const message = createBaseGetUsageResp_Usage();
+    message.totalUsage = object.totalUsage ?? 0;
     return message;
   },
 };

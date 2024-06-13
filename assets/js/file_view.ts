@@ -2,6 +2,7 @@ import * as bfsp from "./bfsp";
 import * as bfspc from "./bfsp.cli";
 import * as efs from "./efs";
 import init, * as f from "./wasm";
+import _ from "lodash";
 import { create_file_div, get_public_key } from "./files";
 
 export async function view_file() {
@@ -37,5 +38,14 @@ export async function view_file() {
     const file_meta = bfspc.FileMetadata.decode(file_meta_bin);
 
     document.getElementById("loading")!.hidden = true;
+
+    const file_name_element = document.createElement("h1") as HTMLHeadElement;
+    file_name_element.innerText = file_meta.fileName;
+
+    const upload_date_element = document.createElement("h3") as HTMLHeadElement;
+    upload_date_element.innerText = "Uploaded: " + file_meta.createTime;
+
+    document.getElementById("file")!.appendChild(file_name_element);
+    document.getElementById("file")!.appendChild(upload_date_element);
     document.getElementById("file")!.appendChild(await create_file_div(file_meta, file_enc_key, await get_public_key(), view_file_info.token));
 }

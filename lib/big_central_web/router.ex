@@ -62,6 +62,7 @@ defmodule BigCentralWeb.Router do
       live "/signup", UserLive.Signup
       live "/login", UserLive.Login
       live "/auth_app_success", UserLive.AuthAppSuccess
+      # unauthenticated viewers can have files shared w them
       live "/files/view_file", FilesLive.ViewFile
     end
 
@@ -77,6 +78,7 @@ defmodule BigCentralWeb.Router do
       layout: {BigCentralWeb.UserLive.Layouts, :app} do
       live "/tokens", UserLive.Tokens
       live "/files", FilesLive.Index
+      live "/usage", FilesLive.Usage
     end
   end
 end

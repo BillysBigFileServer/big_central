@@ -13,7 +13,8 @@ export const protobufPackage = "bfsp.cli";
 export enum FileType {
   IMAGE = 0,
   TEXT = 1,
-  BINARY = 2,
+  UNKNOWN = 2,
+  BINARY = 3,
   UNRECOGNIZED = -1,
 }
 
@@ -26,6 +27,9 @@ export function fileTypeFromJSON(object: any): FileType {
     case "TEXT":
       return FileType.TEXT;
     case 2:
+    case "UNKNOWN":
+      return FileType.UNKNOWN;
+    case 3:
     case "BINARY":
       return FileType.BINARY;
     case -1:
@@ -41,6 +45,8 @@ export function fileTypeToJSON(object: FileType): string {
       return "IMAGE";
     case FileType.TEXT:
       return "TEXT";
+    case FileType.UNKNOWN:
+      return "UNKNOWN";
     case FileType.BINARY:
       return "BINARY";
     case FileType.UNRECOGNIZED:

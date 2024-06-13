@@ -1,7 +1,6 @@
 defmodule BigCentralWeb.FilesLive.Index do
   use BigCentralWeb, :live_view
 
-  # A lot of the functionality for this page needs to be written in typescript, in order to encrypt + decrypt the file metadatas without sending them to the server
   @impl true
   def mount(_params, session, socket) do
     token = session["token"]
