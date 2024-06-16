@@ -66,8 +66,6 @@ COPY priv /app/priv
 
 COPY lib /app/lib
 
-COPY native /app/native
-
 # compile assets
 RUN mix assets.deploy
 
