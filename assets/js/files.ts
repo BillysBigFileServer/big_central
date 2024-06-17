@@ -253,9 +253,8 @@ export async function upload_directory(_hook: ViewHook, token: string) {
   const files = _.map(directory_button.files, async (file: File) => {
     return new Promise(async (resolve, reject) => {
       try {
-        const file_enc_key = f.create_file_encryption_key(master_enc_key, file.name);
         console.log("Uploading file " + file.name);
-        await upload_file_inner(file, file_enc_key, token);
+        await upload_file_inner(file, master_enc_key, token);
         console.log("Uploaded file " + file.name);
         await show_files(token);
         resolve(null);
