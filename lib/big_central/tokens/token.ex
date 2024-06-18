@@ -1,6 +1,7 @@
 defmodule BigCentral.Token do
   alias BigCentral.Tokens
   alias BigCentral.Users
+  alias Bfsp.Biscuit
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -22,7 +23,7 @@ defmodule BigCentral.Token do
 
     facts = [
       {"user", "string", [user.id |> Integer.to_string()]},
-      {"rights", "set", ["read", "write", "query", "delete", "usage"]}
+      {"rights", "set", ["read", "write", "query", "delete", "usage", "payment"]}
     ]
 
     token_private_key =

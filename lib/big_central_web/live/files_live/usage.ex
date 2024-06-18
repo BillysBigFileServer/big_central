@@ -1,7 +1,8 @@
 defmodule BigCentralWeb.FilesLive.Usage do
   alias BigCentral.Repo
   alias BigCentral.Users.User
-  alias BBFS.InternalAPI
+  alias Bfsp.InternalAPI
+  alias Bfsp.Biscuit
   use BigCentralWeb, :live_view
 
   @impl true

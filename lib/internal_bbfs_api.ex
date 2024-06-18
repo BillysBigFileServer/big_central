@@ -1,8 +1,9 @@
-defmodule BBFS.InternalAPI do
+defmodule Bfsp.InternalAPI do
   alias Bfsp.Internal.GetStorageCapResp
   alias Bfsp.Internal.GetUsageResp
   alias Bfsp.Internal.InternalFileServerMessage
   alias Bfsp.Internal.EncryptedInternalFileServerMessage
+  alias Bfsp.Biscuit
 
   def connect(host) do
     opts = [:binary, :inet6, :binary, active: false]

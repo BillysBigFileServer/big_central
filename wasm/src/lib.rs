@@ -222,12 +222,19 @@ pub fn restrict_token_to_file(
     let token = Biscuit::from_base64(token, public_key)
         .map_err(|err| format!("Error deserializing biscuit: {err:?}"))?;
 
-    let fact_btree_set: BTreeSet<_> = BTreeSet::from_iter(vec![string(&file_id)].into_iter());
+    let allowed_file_ids_set: BTreeSet<_> = BTreeSet::from_iter(vec![string(&file_id)].into_iter());
 
     Ok(token
         .append(biscuit_auth::builder::BlockBuilder {
-            facts: vec![fact("allowed_file_ids", &[set(fact_btree_set)])],
-            checks: vec![check!("check all allowed_file_ids($allowed_file_ids), file_ids($file_ids), $allowed_file_ids.contains($file_ids)")],
+            facts: vec![
+                fact("allowed_file_ids", &[set(allowed_file_ids_set)]),
+                fact("rights", &[set(BTreeSet::from_iter(vec![string("read"), string("write")].into_iter()))])
+            ],
+
+            checks: vec![
+                check!("check all allowed_file_ids($allowed_file_ids), file_ids($file_ids), $allowed_file_ids.contains($file_ids)"),
+                check!("check if rights($rights), right($right), $rights.contains($right)"),
+            ],
             ..Default::default()
         })
         .unwrap()

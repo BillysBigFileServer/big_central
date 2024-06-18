@@ -59,9 +59,8 @@ defmodule BigCentral.MixProject do
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
-      {:biscuit, git: "https://github.com/BillysBigFileServer/biscuit-rust.git"},
+      {:bfsp, github: "BillysBigFileServer/bfsp-ex"},
       {:bandit, "~> 1.2"},
-      {:protobuf, "~> 0.12.0"},
       {:google_protos, "~> 0.1"}
     ]
   end
