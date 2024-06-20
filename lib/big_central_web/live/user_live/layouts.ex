@@ -43,6 +43,15 @@ defmodule BigCentralWeb.UserLive.Layouts do
 
       <li>
         <.link
+          href="/usage"
+          class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+        >
+          Usage
+        </.link>
+      </li>
+
+      <li>
+        <.link
           href="/users/logout"
           class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
         >

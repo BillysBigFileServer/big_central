@@ -1,7 +1,7 @@
 %{
   "argon2_elixir": {:hex, :argon2_elixir, "3.2.1", "f47740bf9f2a39ffef79ba48eb25dea2ee37bcc7eadf91d49615591d1a6fce1a", [:make, :mix], [{:comeonin, "~> 5.3", [hex: :comeonin, repo: "hexpm", optional: false]}, {:elixir_make, "~> 0.6", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "a813b78217394530b5fcf4c8070feee43df03ffef938d044019169c766315690"},
   "bandit": {:hex, :bandit, "1.5.4", "8e56e7cfc06f3c57995be0d9bf4e45b972d8732f5c7e96ef8ec0735f52079527", [:mix], [{:hpax, "~> 0.2.0", [hex: :hpax, repo: "hexpm", optional: false]}, {:plug, "~> 1.14", [hex: :plug, repo: "hexpm", optional: false]}, {:telemetry, "~> 0.4 or ~> 1.0", [hex: :telemetry, repo: "hexpm", optional: false]}, {:thousand_island, "~> 1.0", [hex: :thousand_island, repo: "hexpm", optional: false]}, {:websock, "~> 0.5", [hex: :websock, repo: "hexpm", optional: false]}], "hexpm", "04c2b38874769af67fe7f10034f606ad6dda1d8f80c4d7a0c616b347584d5aff"},
-  "bfsp": {:git, "https://github.com/BillysBigFileServer/bfsp-ex.git", "d011807f2d263c760efe3f4151e62a98fb8d9a1f", []},
+  "bfsp": {:git, "https://github.com/BillysBigFileServer/bfsp-ex.git", "ca367b2d2e7837455ba63f828949b302edbffbcf", []},
   "biscuit": {:git, "https://github.com/BillysBigFileServer/bfsp-ex.git", "d011807f2d263c760efe3f4151e62a98fb8d9a1f", []},
   "castore": {:hex, :castore, "1.0.7", "b651241514e5f6956028147fe6637f7ac13802537e895a724f90bf3e36ddd1dd", [:mix], [], "hexpm", "da7785a4b0d2a021cd1292a60875a784b6caef71e76bf4917bdee1f390455cf5"},
   "chacha20": {:hex, :chacha20, "1.0.4", "0359d8f9a32269271044c1b471d5cf69660c362a7c61a98f73a05ef0b5d9eb9e", [:mix], [], "hexpm", "2027f5d321ae9903f1f0da7f51b0635ad6b8819bc7fe397837930a2011bc2349"},

@@ -11,10 +11,10 @@ defmodule BigCentralWeb.FilesLive.Usage do
 
     token_private_key =
       System.get_env("TOKEN_PRIVATE_KEY") ||
-        "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+        ""
 
     public_key = token_private_key |> Biscuit.public_key_from_private()
-    user_id = Biscuit.get_user_id(token.token, public_key)
+    {:ok, user_id} = Biscuit.get_user_id(token.token, public_key)
     email = Repo.get(User, user_id).email
 
     {:ok, sock} =
@@ -33,7 +33,8 @@ defmodule BigCentralWeb.FilesLive.Usage do
     IO.inspect(storage_caps)
     storage_cap = Map.get(storage_caps, user_id)
 
-    {:ok, socket |> assign(email: email, usage: usage, storage_cap: storage_cap)}
+    {:ok,
+     socket |> assign(email: email, usage: usage, storage_cap: storage_cap, token: token.token)}
   end
 
   defp human_readable_bytes(bytes) do
