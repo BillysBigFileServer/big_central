@@ -665,9 +665,10 @@ export async function create_file_div(file_meta: bfspc.FileMetadata, file_enc_ke
         fileEncKey: file_enc_key,
       });
       const view_info_bin = bfspc.ViewFileInfo.encode(view_info).finish();
-      const view_info_b64 = f.base64_encode(view_info_bin);
+      const compressed_view_info_bin = f.compress(view_info_bin, 1);
+      const view_info_b64 = f.base64_encode(compressed_view_info_bin);
 
-      window.location.href = "/files/view_file#" + view_info_b64;
+      window.location.href = "/files/view_file#z:" + view_info_b64;
     });
 
     innerFlexDiv.appendChild(viewButton);

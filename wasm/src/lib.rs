@@ -212,6 +212,18 @@ pub fn hash_password(password: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn compress(data: &[u8], level: i32) -> Vec<u8> {
+    zstd::bulk::compress(data, level).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn decompress(data: &[u8]) -> Vec<u8> {
+    let mut result = Vec::new();
+    zstd::stream::copy_decode(data, &mut result).unwrap();
+    result
+}
+
+#[wasm_bindgen]
 pub fn restrict_token_to_file(
     token: String,
     public_key: String,

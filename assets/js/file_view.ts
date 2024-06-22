@@ -9,8 +9,15 @@ export async function view_file() {
     await init("/wasm/wasm_bg.wasm");
 
     const url = new URL(document.URL);
-    const view_file_info_str = url.hash.slice(1);
-    const view_file_info_bin = f.base64_decode(view_file_info_str);
+    let view_file_info_str = url.hash.slice(1);
+    const is_compressed = view_file_info_str.startsWith("z:");
+    if (is_compressed) {
+        view_file_info_str = view_file_info_str.slice(2);
+    }
+    let view_file_info_bin = f.base64_decode(view_file_info_str);
+    if (is_compressed) {
+        view_file_info_bin = f.decompress(view_file_info_bin);
+    }
     const view_file_info = bfspc.ViewFileInfo.decode(view_file_info_bin);
     console.log(JSON.stringify(view_file_info));
 
