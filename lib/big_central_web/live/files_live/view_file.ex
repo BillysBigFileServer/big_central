@@ -5,13 +5,18 @@ defmodule BigCentralWeb.FilesLive.ViewFile do
   @impl true
   def mount(_params, session, socket) do
     email = session["email"]
-    token = session["token"]
+
+    token =
+      case session["token"] do
+        nil -> nil
+        token -> token.token
+      end
 
     # thanks to UserSessionController.require_authenticated_user/2, we can be sure that the token is valid
     {:ok,
      socket
      |> assign(email: email)
-     |> assign(token: token.token)
+     |> assign(token: token)
      |> push_event("view-file", %{})}
   end
 end
