@@ -1,5 +1,52 @@
-<h1>Usage</h1>
-<h2><%= human_readable_bytes(@usage) %></h2>
-<br>
-<h1>Maximum Usage</h1>
-<h2><%= human_readable_bytes(@storage_cap) %></h2>
+<div class="piechart">
+  <div class="piechart-label piechart-label-usage">
+    Usage: <%= human_readable_bytes(@usage) %>
+  </div>
+  <div class="piechart-label piechart-label-total">
+    Maximum Storage: <%= human_readable_bytes(@storage_cap) %>
+  </div>
+</div>
+<style>
+  .piechart {
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    position: relative; /* Added for label positioning */
+  }
+
+  .piechart-label {
+    position: absolute; /* Absolute positioning within piechart */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);  /* Center the label */
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .piechart-label-usage {
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+    color: white;
+    top: 40%;
+    font-size: 16px;
+    padding: 5px 10px;
+    border-radius: 5px;
+  }
+
+  .piechart-label-total {
+    background-color: rgba(128, 128, 128, 0.3); /* Semi-transparent gray */
+    color: white;
+    top: 60%;
+    font-size: 16px;
+    padding: 3px 5px;
+    border-radius: 3px;
+    /* Positioned slightly below usage label */
+    top: calc(50% + 10px);
+  }
+
+  .piechart {
+    background-image: conic-gradient(
+      black <%= 360 * (@usage / @storage_cap) %>deg,
+      gray 0
+    );
+  }
+</style>
