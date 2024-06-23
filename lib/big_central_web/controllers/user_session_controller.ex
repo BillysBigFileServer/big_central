@@ -75,7 +75,6 @@ defmodule BigCentralWeb.UserSessionController do
         conn
         |> put_session(:token, t)
         |> put_session(:email, email)
-        |> put_flash(:info, "Logged in successfully")
         |> redirect(to: redirect_to)
 
       {:error, error} ->
