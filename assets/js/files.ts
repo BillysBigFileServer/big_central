@@ -610,75 +610,77 @@ async function show_files(token: string) {
 
 export async function create_file_div(file_meta: bfspc.FileMetadata, file_enc_key: string, public_key: string | null, token: string): Promise<HTMLDivElement> {
   const name = file_meta.fileName;
-
-    // Create the outer div element
-    const outerDiv = document.createElement('div');
-    outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer'); // Add 'flex-grow' class
-
-    // Create the flex container div
-    const flexContainerDiv = document.createElement('div');
-    flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
-
-    // Create the inner flex container div
-    const innerFlexDiv = document.createElement('div');
-    innerFlexDiv.classList.add('flex', 'items-center', 'space-x-4');
-
-    // Create the heading element
-    const heading = document.createElement('h2');
-    heading.textContent = name;
-    heading.classList.add('text-sm', 'font-semibold');
-
-    // Create the button element
-    const button = document.createElement('button');
-    button.classList.add('text-gray-500', 'hover:text-gray-700');
-
-    // Append the heading to the inner flex container div
-    innerFlexDiv.appendChild(heading);
-
-    const downloadButton = document.createElement('button');
-    downloadButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>';
-    downloadButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
-    downloadButton.addEventListener('click', () => {
-      download_file({ target: { id: file_meta.id } }, file_enc_key, token);
+  const view_file_fn = async () => {
+    const view_info = bfspc.ViewFileInfo.create({
+      id: file_meta.id,
+      token: token,
+      fileEncKey: file_enc_key,
     });
+    const view_info_bin = bfspc.ViewFileInfo.encode(view_info).finish();
+    const compressed_view_info_bin = f.compress(view_info_bin, 1);
+    const view_info_b64 = f.base64_encode(compressed_view_info_bin);
+
+    window.location.href = "/files/view_file#z:" + view_info_b64;
+  };
+
+  // Create the outer div element
+  const outerDiv = document.createElement('div');
+  outerDiv.classList.add('bg-white', 'shadow-md', 'rounded-lg', 'p-4', 'flex-grow', 'cursor-pointer'); // Add 'flex-grow' class
+
+  // Create the flex container div
+  const flexContainerDiv = document.createElement('div');
+  flexContainerDiv.classList.add('flex', 'items-center', 'justify-between', 'mb-4');
+
+  // Create the inner flex container div
+  const innerFlexDiv = document.createElement('div');
+  innerFlexDiv.classList.add('flex', 'items-center', 'space-x-4');
+
+  // Create the heading element
+  const heading = document.createElement('h2');
+  heading.textContent = name;
+  heading.classList.add('text-sm', 'font-semibold');
+  heading.addEventListener('click', view_file_fn);
+
+  // Create the button element
+  const button = document.createElement('button');
+  button.classList.add('text-gray-500', 'hover:text-gray-700');
+
+  // Append the heading to the inner flex container div
+  innerFlexDiv.appendChild(heading);
+
+  const downloadButton = document.createElement('button');
+  downloadButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>';
+  downloadButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
+  downloadButton.addEventListener('click', () => {
+    download_file({ target: { id: file_meta.id } }, file_enc_key, token);
+  });
 
 
-    innerFlexDiv.appendChild(downloadButton);
+  innerFlexDiv.appendChild(downloadButton);
 
-    const deleteButton = document.createElement('button');
-    deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
-    deleteButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
-    deleteButton.addEventListener('click', async () => {
-      await delete_file(file_meta.id, file_enc_key, token);
-      await show_files(token);
-    });
+  const deleteButton = document.createElement('button');
+  deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
+  deleteButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto'); // Align to the right
+  deleteButton.addEventListener('click', async () => {
+    await delete_file(file_meta.id, file_enc_key, token);
+    await show_files(token);
+  });
 
-    innerFlexDiv.appendChild(deleteButton);
+  innerFlexDiv.appendChild(deleteButton);
 
-    const viewButton = document.createElement('button');
-    viewButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-160q-33 0-56.5-23.5T400-240q0-33 23.5-56.5T480-320q33 0 56.5 23.5T560-240q0 33-23.5 56.5T480-160Zm0-240q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm0-240q-33 0-56.5-23.5T400-720q0-33 23.5-56.5T480-800q33 0 56.5 23.5T560-720q0 33-23.5 56.5T480-640Z"/></svg>';
-    viewButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto');
-    viewButton.addEventListener('click', async () => {
-      const view_info = bfspc.ViewFileInfo.create({
-        id: file_meta.id,
-        token: token,
-        fileEncKey: file_enc_key,
-      });
-      const view_info_bin = bfspc.ViewFileInfo.encode(view_info).finish();
-      const compressed_view_info_bin = f.compress(view_info_bin, 1);
-      const view_info_b64 = f.base64_encode(compressed_view_info_bin);
+  const viewButton = document.createElement('button');
+  viewButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#434343"><path d="M480-160q-33 0-56.5-23.5T400-240q0-33 23.5-56.5T480-320q33 0 56.5 23.5T560-240q0 33-23.5 56.5T480-160Zm0-240q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm0-240q-33 0-56.5-23.5T400-720q0-33 23.5-56.5T480-800q33 0 56.5 23.5T560-720q0 33-23.5 56.5T480-640Z"/></svg>';
+  viewButton.classList.add('text-gray-500', 'hover:text-gray-700', 'ml-auto');
+  viewButton.addEventListener('click', view_file_fn);
 
-      window.location.href = "/files/view_file#z:" + view_info_b64;
-    });
+  innerFlexDiv.appendChild(viewButton);
 
-    innerFlexDiv.appendChild(viewButton);
+  // Append the inner flex container div and the button to the flex container div
+  flexContainerDiv.appendChild(innerFlexDiv);
+  flexContainerDiv.appendChild(button);
 
-    // Append the inner flex container div and the button to the flex container div
-    flexContainerDiv.appendChild(innerFlexDiv);
-    flexContainerDiv.appendChild(button);
-
-    // Append the flex container div to the outer div
-    outerDiv.appendChild(flexContainerDiv);
+  // Append the flex container div to the outer div
+  outerDiv.appendChild(flexContainerDiv);
 
   return outerDiv;
 }

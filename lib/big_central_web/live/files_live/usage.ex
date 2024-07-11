@@ -7,9 +7,9 @@ defmodule BigCentralWeb.FilesLive.Usage do
   def mount(_params, session, socket) do
     token = session["token"]
 
-    {:ok, %{usage: usage, storage_cap: storage_cap}} = get_storage_info(token.token)
+    {:ok, %{usage: usage, storage_cap: storage_cap}} = get_storage_info(token)
     if connected?(socket), do: :timer.send_interval(10000, self(), :update)
-    {:ok, socket |> assign(token: token.token, usage: usage, storage_cap: storage_cap)}
+    {:ok, socket |> assign(token: token, usage: usage, storage_cap: storage_cap)}
   end
 
   defp get_storage_info(token) do

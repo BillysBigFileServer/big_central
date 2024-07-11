@@ -63,7 +63,6 @@ defmodule BigCentralWeb.Router do
       live "/login", UserLive.Login
       live "/auth_app_success", UserLive.AuthAppSuccess
       # unauthenticated viewers can have files shared w them
-      live "/files/view_file", FilesLive.ViewFile
     end
 
     get "/users/logout", UserSessionController, :delete
@@ -77,8 +76,10 @@ defmodule BigCentralWeb.Router do
     live_session :authenticated,
       layout: {BigCentralWeb.UserLive.Layouts, :app} do
       live "/tokens", UserLive.Tokens
-      live "/files", FilesLive.Index
       live "/usage", FilesLive.Usage
     end
+
+    get "/files/view_file", FilesController, :view_file
+    get "/files", FilesController, :index
   end
 end

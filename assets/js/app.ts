@@ -40,9 +40,13 @@ document.getElementById("password")?.addEventListener("input", validate_password
 document.getElementById("signup_form")?.addEventListener("submit", prep_signup);
 document.getElementById("login_form")?.addEventListener("submit", prep_login);
 
-window.addEventListener("phx:show-files", async () => {show_files(await get_token(null, null))})
-window.addEventListener("phx:view-file", view_file)
-
+if (window.location.pathname == "/files") {
+    get_token(null, null).then((token) => {
+        show_files(token);
+    });
+} else if (window.location.pathname == "/files/view_file") {
+    view_file();
+}
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

@@ -73,7 +73,7 @@ defmodule BigCentralWeb.UserSessionController do
           end
 
         conn
-        |> put_session(:token, t)
+        |> put_session(:token, t.token)
         |> put_session(:email, email)
         |> redirect(to: redirect_to)
 
