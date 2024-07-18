@@ -66,6 +66,7 @@ defmodule BigCentralWeb.Router do
     end
 
     get "/users/logout", UserSessionController, :delete
+    get "/users/confirm_signup", UserSessionController, :confirm_signup
     post "/users/signup", UserSessionController, :create
     post "/users/login", UserSessionController, :create
   end

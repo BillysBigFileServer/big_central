@@ -30,6 +30,8 @@ config :big_central, BigCentralWeb.Endpoint,
     npm: ["--prefix", "assets", "run", "typecheck", "--", "--watch"]
   ]
 
+# emails are at /dev/mailbox
+config :big_central, BigCentral.Mailer, adapter: Swoosh.Adapters.Local
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

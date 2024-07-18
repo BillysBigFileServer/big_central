@@ -21,6 +21,18 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
+  config :big_central, BigCentral.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: "smtp.protonmail.ch",
+    username: "support@bbfs.io",
+    password: System.get_env("SMTP_PASSWORD"),
+    ssl: true,
+    tls: :always,
+    ssl: false,
+    auth: :always,
+    port: 587,
+    retries: 3
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

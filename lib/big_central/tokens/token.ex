@@ -32,7 +32,7 @@ defmodule BigCentral.Token do
 
     t =
       token_private_key
-      |> Biscuit.generate(facts)
+      |> Biscuit.generate(facts, %{})
 
     Tokens.create_token(%{token: t, user_id: user.id, valid: true})
   end

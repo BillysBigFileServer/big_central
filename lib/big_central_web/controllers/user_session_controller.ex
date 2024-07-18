@@ -1,6 +1,12 @@
 defmodule BigCentralWeb.UserSessionController do
   use BigCentralWeb, :controller
 
+  import Swoosh.Email
+
+  alias BigCentral.Repo
+  alias BigCentral.Users.User
+  alias Bfsp.Biscuit
+  alias BigCentral.Mailer
   alias BigCentral.Tokens
   alias BigCentral.Token
   alias BigCentral.Users
@@ -9,43 +15,81 @@ defmodule BigCentralWeb.UserSessionController do
   def create(
         conn,
         %{
-          "email" => email,
+          "email" => email_addr,
           "hashed_password" => password,
           "dl_token" => dl_token,
           "action" => "signup",
           "signup_code" => signup_code
         }
       ) do
-    {:ok, _, _} = Validation.validate(email, :email)
+    {:ok, _, _} = Validation.validate(email_addr, :email)
     {:ok, _, _} = Validation.validate(password, :password)
 
     correct_signup_code =
-      case signup_code == (System.get_env("SIGNUP_CODE") || "billy123") do
-        true -> :ok
-        false -> {:err, :invalid_signup_code}
-      end
+      signup_code == (System.get_env("SIGNUP_CODE") || "billy123")
 
-    with :ok <- correct_signup_code,
-         {:ok, _} <- Users.create_user(%{email: email, password: password}) do
+    email_exists = Repo.get_by(User, email: email_addr) != nil
+
+    if correct_signup_code && !email_exists do
       redirect_to =
         case dl_token == "" do
-          true -> ~p"/login"
+          true -> ~p"/"
           false -> ~p"/auth_app_success"
         end
 
+      token_private_key =
+        System.get_env("TOKEN_PRIVATE_KEY") ||
+          "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+
+      {:ok, key} =
+        System.get_env("INTERNAL_KEY", "Kwdl1_CckyprfRki3pKJ6jGXvSzGxp8I1WsWFqJYS3I=")
+        |> Base.url_decode64()
+
+      nonce = :crypto.strong_rand_bytes(24)
+      {:ok, enc_password} = Biscuit.encrypt(password, key, nonce)
+
+      facts = [
+        {"email", "string", [email_addr]},
+        {"password", "string", [enc_password |> :binary.list_to_bin() |> Base.encode64()]},
+        {"nonce", "string", [nonce |> Base.encode64()]}
+      ]
+
+      options = %{"seal" => "true"}
+      token = token_private_key |> Biscuit.generate(facts, options)
+
+      endpoint =
+        case System.get_env("PHX_HOST") do
+          nil -> "http://localhost:4000"
+          host -> "https://#{host}"
+        end
+
+      signup_link = "#{endpoint}/users/confirm_signup?token=#{token}"
+
+      email =
+        new()
+        |> to({email_addr, email_addr})
+        |> from({"BBFS.io Support", "support@bbfs.io"})
+        |> subject("Signup Code")
+        |> html_body("""
+        <p>Signup link:</p>
+        <a href="#{signup_link}">Click here to signup</a>
+        """)
+
+      {:ok, _} = Mailer.deliver(email)
+
       conn
-      |> put_flash(:info, "Registered successfully. Please log in.")
+      |> put_flash(:info, "We went a confirmation email to " <> email_addr)
       |> redirect(to: redirect_to)
     else
-      {:err, :invalid_signup_code} ->
+      if !correct_signup_code do
         conn
         |> put_flash(:error, "Invalid signup code")
         |> redirect(to: ~p"/signup")
-
-      {:err, _error} ->
+      else
         conn
-        |> put_flash(:error, "Email or password is invalid")
+        |> put_flash(:error, "Email already exists")
         |> redirect(to: ~p"/signup")
+      end
     end
   end
 
@@ -97,6 +141,45 @@ defmodule BigCentralWeb.UserSessionController do
     |> clear_session()
     |> put_flash(:info, "Logged out successfully.")
     |> redirect(to: redirect_page)
+  end
+
+  def confirm_signup(conn, %{"token" => token}) do
+    private_key = System.get_env("TOKEN_PRIVATE_KEY")
+    public_key = Biscuit.public_key_from_private(private_key)
+
+    {:ok, _} =
+      Biscuit.authorize(
+        token,
+        public_key,
+        """
+        check if email($email);
+        check if password($password);
+
+        allow if true;
+        deny if false;
+        """
+      )
+
+    {:ok, email} = Biscuit.get_fact(token, public_key, "email")
+    {:ok, nonce} = Biscuit.get_fact(token, public_key, "nonce")
+    {:ok, enc_password} = Biscuit.get_fact(token, public_key, "password")
+    {:ok, enc_password} = enc_password |> Base.decode64()
+
+    {:ok, key} =
+      System.get_env("INTERNAL_KEY", "Kwdl1_CckyprfRki3pKJ6jGXvSzGxp8I1WsWFqJYS3I=")
+      |> Base.url_decode64()
+
+    {:ok, nonce} = nonce |> Base.decode64()
+    {:ok, password} = Biscuit.decrypt(enc_password, key, nonce)
+    password = password |> to_string()
+
+    {:ok, _user} = Users.create_user(%{email: email, password: password})
+
+    conn |> put_flash(:info, "Signed up successfully!") |> redirect(to: ~p"/login")
+  end
+
+  def confirm_signup(conn, _params) do
+    conn |> redirect(to: ~p"/")
   end
 
   def require_authenticated_user(conn, _opts) do
