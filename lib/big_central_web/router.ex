@@ -80,7 +80,13 @@ defmodule BigCentralWeb.Router do
       live "/usage", FilesLive.Usage
     end
 
-    get "/files/view_file", FilesController, :view_file
     get "/files", FilesController, :index
+  end
+
+
+  scope "/", BigCentralWeb do
+    pipe_through [:browser]
+
+    get "/files/view_file", FilesController, :view_file
   end
 end
