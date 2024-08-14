@@ -21,9 +21,9 @@ kill_signal = 'SIGTERM'
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ['app']
 
   [http_service.concurrency]
@@ -32,6 +32,6 @@ kill_signal = 'SIGTERM'
     soft_limit = 1000
 
 [[vm]]
-  memory = '8gb'
+  memory = '2gb'
   cpu_kind = 'shared'
   cpus = 4
