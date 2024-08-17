@@ -18,31 +18,26 @@ defmodule BigCentralWeb.UserSessionController do
           "email" => email_addr,
           "hashed_password" => password,
           "dl_token" => dl_token,
-          "action" => "signup",
-          "signup_code" => signup_code
+          "action" => "signup"
         }
       ) do
     {:ok, _, _} = Validation.validate(email_addr, :email)
     {:ok, _, _} = Validation.validate(password, :password)
 
-    correct_signup_code =
-      signup_code == (System.get_env("SIGNUP_CODE") || "billy123")
-
     email_exists = Repo.get_by(User, email: email_addr) != nil
 
-    if correct_signup_code && !email_exists do
+    if !email_exists do
       redirect_to =
         case dl_token == "" do
           true -> ~p"/"
-          false -> ~p"/auth_app_success"
+          false -> ~p"/auth?dl_token=#{dl_token}"
         end
 
       token_private_key =
-        System.get_env("TOKEN_PRIVATE_KEY") ||
-          "f2816d76ba024d91de2f3a259b3feaef641051e73c9c4cdaad63e57728693aa1"
+        System.get_env("TOKEN_PRIVATE_KEY")
 
       {:ok, key} =
-        System.get_env("INTERNAL_KEY", "Kwdl1_CckyprfRki3pKJ6jGXvSzGxp8I1WsWFqJYS3I=")
+        System.get_env("INTERNAL_KEY")
         |> Base.url_decode64()
 
       nonce = :crypto.strong_rand_bytes(24)
@@ -81,15 +76,9 @@ defmodule BigCentralWeb.UserSessionController do
       |> put_flash(:info, "We went a confirmation email to " <> email_addr)
       |> redirect(to: redirect_to)
     else
-      if !correct_signup_code do
-        conn
-        |> put_flash(:error, "Invalid signup code")
-        |> redirect(to: ~p"/signup")
-      else
-        conn
-        |> put_flash(:error, "Email already exists")
-        |> redirect(to: ~p"/signup")
-      end
+      conn
+      |> put_flash(:error, "Email already exists")
+      |> redirect(to: ~p"/signup")
     end
   end
 
