@@ -108,12 +108,11 @@ defmodule BigCentralWeb.UserSessionController do
     case Users.login_user(%{email: email, password: password}) do
       {:ok, _} ->
         {:ok, t} = Token.generate_ultimate(email)
-        {:ok, _} = Tokens.DLTokens.save_dl_token(dl_token, t.token)
 
         redirect_to =
           case dl_token == "" do
             true -> ~p"/files"
-            false -> ~p"/auth_app_success"
+            false -> ~p"/auth?dl_token=#{dl_token}"
           end
 
         conn

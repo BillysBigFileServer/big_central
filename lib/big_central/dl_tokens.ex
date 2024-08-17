@@ -13,7 +13,7 @@ defmodule BigCentral.Tokens.DLTokens do
   end
 
   def save_dl_token(dl_token, token) do
-    expires = DateTime.utc_now() |> DateTime.add(1, :minute)
+    expires = DateTime.utc_now() |> DateTime.add(10, :minute)
 
     %DLToken{}
     |> DLToken.changeset(%{token: token, dl_token: dl_token, expires: expires})

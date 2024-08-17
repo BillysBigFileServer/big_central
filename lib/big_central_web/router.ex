@@ -61,9 +61,9 @@ defmodule BigCentralWeb.Router do
       layout: {BigCentralWeb.UserLive.Layouts, :app} do
       live "/signup", UserLive.Signup
       live "/login", UserLive.Login
-      live "/auth_app_success", UserLive.AuthAppSuccess
-      # unauthenticated viewers can have files shared w them
     end
+
+    live "/auth", UserLive.Auth
 
     get "/users/logout", UserSessionController, :delete
     get "/users/confirm_signup", UserSessionController, :confirm_signup
@@ -83,10 +83,10 @@ defmodule BigCentralWeb.Router do
     get "/files", FilesController, :index
   end
 
-
   scope "/", BigCentralWeb do
     pipe_through [:browser]
 
+    # unauthenticated viewers can have files shared w them
     get "/files/view_file", FilesController, :view_file
   end
 end
