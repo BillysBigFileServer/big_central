@@ -23,7 +23,17 @@ defmodule BigCentral.Token do
 
     facts = [
       {"user", "string", [user.id |> Integer.to_string()]},
-      {"rights", "set", ["read", "write", "query", "delete", "usage", "payment"]}
+      {"rights", "set",
+       [
+         "read",
+         "write",
+         "query",
+         "delete",
+         "usage",
+         "payment",
+         "read_master_key",
+         "write_master_key"
+       ]}
     ]
 
     token_private_key =
