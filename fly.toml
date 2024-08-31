@@ -15,6 +15,7 @@ kill_signal = 'SIGTERM'
 [env]
   INTERNAL_API_HOST="big-file-server.internal"
   BIG_MONEY_URL="https://membership.bbfs.io/"
+  CF_SIGNUP_SITE_KEY="0x4AAAAAAAieJl6sX83_MNlK"
   PHX_HOST = 'bbfs.io'
   PORT = '8080'
 

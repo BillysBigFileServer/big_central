@@ -28,6 +28,16 @@ Hooks.CreateDirectoryHook = {
     }
 }
 
+Hooks.InitTurnstile = {
+  async mounted() {
+    // Re-initialize Turnstile after LiveView update
+    turnstile.render('.cf-turnstile', {
+      sitekey: this.el.dataset.sitekey,
+      callback: this.el.dataset.callback
+    });
+  }
+}
+
 let csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content");
 
 var liveSocket = new LiveSocket("/live", Socket, {

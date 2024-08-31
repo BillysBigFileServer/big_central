@@ -1,3 +1,5 @@
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+
 <h1>Hello!</h1>
 <form action="/users/signup" id="signup_form" method="POST">
 
@@ -14,6 +16,7 @@
   <input type="hidden" name="dl_token" value={@dl_token} />
   <input type="hidden" name="action" value="signup">
   <input type="hidden" name="_csrf_token" value={@csrf_token} />
+  <div class="cf-turnstile" id="turnstile" data-sitekey={@cf_turnstile_signup_site_key} data-callback="javascriptCallback" phx-hook="InitTurnstile"></div>
 
   <input type="submit" value = "Sign Up"/>
 </form>

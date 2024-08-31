@@ -21,11 +21,27 @@ defmodule BigCentralWeb.UserSessionController do
           "email" => email_addr,
           "hashed_password" => password,
           "dl_token" => dl_token,
-          "action" => "signup"
+          "action" => "signup",
+          "cf-turnstile-response" => cf_response
         }
       ) do
     {:ok, _, _} = Validation.validate(email_addr, :email)
     {:ok, _, _} = Validation.validate(password, :password)
+
+    cf_secret_key = System.fetch_env!("CF_TURNSTILE_SIGNUP_SECRET_KEY")
+
+    {:ok, resp} =
+      HTTPoison.post(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        "secret=#{cf_secret_key}&response=#{cf_response}",
+        [{"Content-Type", "application/json"}]
+      )
+
+    {:ok, resp} = resp.body |> Jason.decode()
+
+    if !resp["success"] do
+      {:ok, conn |> put_flash(:error, "Failed Cloudflare Turnstile")}
+    end
 
     email_exists = Repo.get_by(User, email: email_addr) != nil
 
