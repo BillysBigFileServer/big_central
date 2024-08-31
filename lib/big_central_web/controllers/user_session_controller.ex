@@ -3,6 +3,9 @@ defmodule BigCentralWeb.UserSessionController do
 
   import Swoosh.Email
 
+  alias Google.Protobuf
+  alias Bfsp.Internal.ActionInfo
+  alias Bfsp.InternalAPI
   alias BigCentral.Repo
   alias BigCentral.Users.User
   alias Bfsp.Biscuit
@@ -161,7 +164,31 @@ defmodule BigCentralWeb.UserSessionController do
     {:ok, password} = Biscuit.decrypt(enc_password, key, nonce)
     password = password |> to_string()
 
-    {:ok, _user} = Users.create_user(%{email: email, password: password})
+    {:ok, user} = Users.create_user(%{email: email, password: password})
+
+    {:ok, time} = DateTime.now("Etc/UTC")
+    unix_time = time |> DateTime.add(30, :day) |> DateTime.to_unix(:nanosecond)
+
+    execute_at =
+      Protobuf.Timestamp.new(
+        seconds: Integer.floor_div(unix_time, 1_000_000_000),
+        nanoseconds: rem(unix_time, 1_000_000_000)
+      )
+
+    {:ok, sock} =
+      System.get_env("INTERNAL_API_HOST")
+      |> String.to_charlist()
+      |> InternalAPI.connect()
+
+    {:ok, _} =
+      sock
+      |> InternalAPI.queue_action(%ActionInfo{
+        id: nil,
+        action: "suspend_write",
+        execute_at: execute_at,
+        status: "pending",
+        user_id: user.id
+      })
 
     conn |> put_flash(:info, "Signed up successfully!") |> redirect(to: ~p"/login")
   end
