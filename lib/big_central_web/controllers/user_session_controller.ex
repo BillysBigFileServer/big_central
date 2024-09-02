@@ -107,11 +107,21 @@ defmodule BigCentralWeb.UserSessionController do
           "email" => email,
           "hashed_password" => password,
           "dl_token" => dl_token,
-          "action" => "login"
+          "action" => "login",
+          "cf-turnstile-response" => cf_response
         }
       ) do
     {:ok, _, _} = Validation.validate(email, :email)
     {:ok, _, _} = Validation.validate(password, :password)
+
+    cf_secret_key = System.fetch_env!("CF_TURNSTILE_LOGIN_SECRET_KEY")
+
+    {:ok, resp} =
+      HTTPoison.post(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        "secret=#{cf_secret_key}&response=#{cf_response}",
+        [{"Content-Type", "application/json"}]
+      )
 
     case Users.login_user(%{email: email, password: password}) do
       {:ok, _} ->

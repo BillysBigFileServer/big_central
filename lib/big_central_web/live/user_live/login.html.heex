@@ -1,3 +1,5 @@
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+
 <h1>Welcome Back!</h1>
 <form action="/users/login" id="login_form" method="POST">
   <input type="email" id="email" name="email" class="w-full min-w-screen" />
@@ -9,6 +11,8 @@
   <input type="hidden" name="dl_token" value={@dl_token} />
   <input type="hidden" name="action" value="login" />
   <input type="hidden" name="_csrf_token" value={@csrf_token} />
+
+  <div class="cf-turnstile" id="turnstile" data-sitekey={@cf_turnstile_login_site_key} data-callback="javascriptCallback" phx-hook="InitTurnstile"></div>
 
   <input type="submit" value = "Login"/>
 </form>

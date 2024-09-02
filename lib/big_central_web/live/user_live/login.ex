@@ -11,6 +11,7 @@ defmodule BigCentralWeb.UserLive.Login do
      |> assign(token: token)
      |> assign(email: email)
      |> assign(dl_token: params["dl_token"])
+     |> assign(cf_turnstile_login_site_key: System.fetch_env!("CF_TURNSTILE_LOGIN_SITE_KEY"))
      |> assign(csrf_token: Plug.CSRFProtection.get_csrf_token())}
   end
 end
