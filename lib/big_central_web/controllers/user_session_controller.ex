@@ -10,7 +10,6 @@ defmodule BigCentralWeb.UserSessionController do
   alias BigCentral.Users.User
   alias Bfsp.Biscuit
   alias BigCentral.Mailer
-  alias BigCentral.Tokens
   alias BigCentral.Token
   alias BigCentral.Users
   alias BigCentral.Users.Validation
@@ -48,19 +47,19 @@ defmodule BigCentralWeb.UserSessionController do
     if !email_exists do
       redirect_to =
         case dl_token == "" do
-          true -> ~p"/"
+          true -> ~p"/login"
           false -> ~p"/auth?dl_token=#{dl_token}"
         end
 
       token_private_key =
         System.get_env("TOKEN_PRIVATE_KEY")
 
-      {:ok, key} =
+      {:ok, internal_key} =
         System.get_env("INTERNAL_KEY")
         |> Base.url_decode64()
 
       nonce = :crypto.strong_rand_bytes(24)
-      {:ok, enc_password} = Biscuit.encrypt(password, key, nonce)
+      {:ok, enc_password} = Biscuit.encrypt(password, internal_key, nonce)
 
       facts = [
         {"email", "string", [email_addr]},
@@ -122,6 +121,12 @@ defmodule BigCentralWeb.UserSessionController do
         "secret=#{cf_secret_key}&response=#{cf_response}",
         [{"Content-Type", "application/json"}]
       )
+
+    {:ok, resp} = resp.body |> Jason.decode()
+
+    if !resp["success"] do
+      {:ok, conn |> put_flash(:error, "Failed Cloudflare Turnstile")}
+    end
 
     case Users.login_user(%{email: email, password: password}) do
       {:ok, _} ->
@@ -207,8 +212,7 @@ defmodule BigCentralWeb.UserSessionController do
       |> InternalAPI.connect()
 
     {:ok, _} =
-      sock
-      |> InternalAPI.queue_action(%ActionInfo{
+      InternalAPI.queue_action(sock, %ActionInfo{
         id: nil,
         action: "suspend_write",
         execute_at: execute_at,

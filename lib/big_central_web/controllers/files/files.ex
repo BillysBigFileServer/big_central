@@ -1,6 +1,5 @@
 defmodule BigCentralWeb.FilesController do
   use BigCentralWeb, :controller
-  alias BigCentralWeb.UserLayouts
 
   def index(conn, _params) do
     token = get_session(conn, :token)

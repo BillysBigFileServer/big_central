@@ -27,6 +27,7 @@ import { validate_email, validate_password } from "./auth";
 import { prep_signup } from "./signup";
 import { prep_login } from "./login";
 import { get_token } from "./efs_wc";
+import { set_pub_key_input } from "./auth_page";
 
 
 // Show progress bar on live navigation and form submits
@@ -46,6 +47,8 @@ if (window.location.pathname == "/files") {
     });
 } else if (window.location.pathname == "/files/view_file") {
     view_file();
+} else if (window.location.pathname == "/auth") {
+    set_pub_key_input();
 }
 // connect if there are any LiveViews on the page
 liveSocket.connect()

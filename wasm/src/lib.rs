@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::{collections::HashMap, str::FromStr, sync::RwLock};
+use std::{collections::HashMap, str::FromStr};
 
 use bfsp::cli::{FileMetadata, FileType};
 use bfsp::{
@@ -9,7 +9,9 @@ use bfsp::{
 use biscuit_auth::builder::{fact, set, string};
 use biscuit_auth::macros::check;
 use biscuit_auth::{Biscuit, PublicKey};
-use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
+use rsa::pkcs1::DecodeRsaPublicKey;
+use rsa::{Pkcs1v15Encrypt, RsaPublicKey};
+use time::OffsetDateTime;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -254,4 +256,17 @@ pub fn restrict_token_to_file(
         .unwrap()
         .to_base64()
         .unwrap())
+}
+
+#[wasm_bindgen]
+pub fn rsa_encrypt(public_key_b64: String, data: &[u8]) -> Vec<u8> {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    let public_key = bfsp::base64_decode(&public_key_b64).unwrap();
+    let public_key = RsaPublicKey::from_pkcs1_der(&public_key).unwrap();
+
+    let enc_data = public_key
+        .encrypt(&mut rand::thread_rng(), Pkcs1v15Encrypt, data)
+        .unwrap();
+    enc_data
 }

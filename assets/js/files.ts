@@ -722,8 +722,6 @@ export async function create_directory_input(token: string) {
       await finish_creating_directory();
     }
   });
-
-
 }
 
 async function enter_directory(directory: string[], token: string) {

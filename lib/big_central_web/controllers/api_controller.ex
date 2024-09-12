@@ -1,6 +1,5 @@
 defmodule BigCentralWeb.ApiController do
   alias BigCentral.Users.Validation
-  alias BigCentral.Tokens.DLTokensstring
   alias BigCentral.Tokens.DLTokens
   alias Bfsp.Biscuit
 
@@ -22,11 +21,20 @@ defmodule BigCentralWeb.ApiController do
       text(conn, "invalid token")
     end
 
-    token = DLTokens.get_and_delete_token(dl_token)
+    token_key = DLTokens.get_and_delete_token_and_enc_key(dl_token)
 
-    case token do
-      nil -> conn |> put_status(404) |> text("no token found")
-      _ -> text(conn, token)
+    case token_key do
+      nil ->
+        conn |> put_status(404) |> text("no token found")
+
+      _ ->
+        {token, key} = token_key
+
+        conn
+        |> json(%{
+          token: token,
+          encrypted_master_key: key
+        })
     end
   end
 
