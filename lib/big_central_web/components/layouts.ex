@@ -42,7 +42,12 @@ defmodule BigCentralWeb.Layouts do
       |> InternalAPI.connect()
 
     {:ok, actions_per_user} = sock |> InternalAPI.get_queued_actions_for_user([user_id])
-    actions = actions_per_user.action_info[user_id].actions
+
+    actions =
+      case actions_per_user.action_info[user_id] do
+        nil -> []
+        action_list -> action_list.actions
+      end
 
     case Enum.find(actions, nil, fn action_info -> action_info.action == "suspend_write" end) do
       nil ->

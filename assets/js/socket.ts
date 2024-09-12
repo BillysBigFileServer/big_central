@@ -2,6 +2,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {upload_file, upload_directory, create_directory_input} from "./files"
 import { get_token } from "./efs_wc";
+import { set_pub_key_input } from "./auth_page";
 
 let Hooks: any = {};
 Hooks.UploadFileHook = {
@@ -35,6 +36,12 @@ Hooks.InitTurnstile = {
       sitekey: this.el.dataset.sitekey,
       callback: this.el.dataset.callback
     });
+  }
+}
+
+Hooks.SetPubKey = {
+  async mounted() {
+    await set_pub_key_input();
   }
 }
 

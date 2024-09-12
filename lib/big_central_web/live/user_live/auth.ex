@@ -42,7 +42,9 @@ defmodule BigCentralWeb.UserLive.Auth do
 
   def sign_in_confirmation(%{confirmed_sign_in: false} = assigns) do
     ~H"""
-    <.button>Confirm sign in</.button>
+    <.button class="bg-gray-500" id="sign_in_button" phx-hook="SetPubKey" disabled>
+      Confirm sign in
+    </.button>
     """
   end
 
