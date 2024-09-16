@@ -7,6 +7,18 @@ defmodule BigCentralWeb.FilesLive.Usage do
   def mount(_params, session, socket) do
     token = session["token"]
 
+    token_private_key = System.get_env("TOKEN_PRIVATE_KEY")
+    public_key = token_private_key |> Biscuit.public_key_from_private()
+
+    {:ok, _} =
+      Biscuit.authorize(token, public_key, """
+        check if user($user);
+        check if rights($rights), $rights.contains("usage");
+
+        allow if true;
+        deny if false;
+      """)
+
     {:ok, %{usage: usage, storage_cap: storage_cap}} = get_storage_info(token)
     if connected?(socket), do: :timer.send_interval(10000, self(), :update)
     {:ok, socket |> assign(token: token, usage: usage, storage_cap: storage_cap)}
