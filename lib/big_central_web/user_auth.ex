@@ -172,6 +172,24 @@ defmodule BigCentralWeb.UserAuth do
     end
   end
 
+  def on_mount(:marketing, params, _session, socket) do
+    utm_source = params["utm_source"]
+    utm_medium = params["utm_medium"]
+    utm_campaign = params["utm_campaign"]
+    utm_term = params["utm_term"]
+    utm_content = params["utm_content"]
+
+    utm = %{
+      utm_source: utm_source,
+      utm_medium: utm_medium,
+      utm_campaign: utm_campaign,
+      utm_term: utm_term,
+      utm_content: utm_content
+    }
+
+    {:cont, socket |> Phoenix.Component.assign_new(:utm, fn -> utm end)}
+  end
+
   defp mount_current_user(socket, session) do
     Phoenix.Component.assign_new(socket, :current_user, fn ->
       if user_token = session["user_token"] do

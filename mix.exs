@@ -63,8 +63,10 @@ defmodule BigCentral.MixProject do
       {:bfsp, github: "BillysBigFileServer/bfsp-ex"},
       # {:bfsp, path: "../bfsp-ex"},
       {:bandit, "~> 1.2"},
-      {:google_protos, "~> 0.1"},
-      {:httpoison, "~> 2.2"}
+      {:google_protos, "~>0.1"},
+      {:httpoison, "~> 2.2"},
+      {:bip39, "~>0.1.1"},
+      {:identicon_svg, "~>0.9.5"}
     ]
   end
 

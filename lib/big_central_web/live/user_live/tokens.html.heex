@@ -1,4 +1,21 @@
 <h1>Tokens:</h1>
-<%= for token <- @tokens do %>
-  <h2><%= token.email %>: <%= token %></h2>
-<% end %>
+<div class="grid grid-cols-1 gap-[50px]">
+    <%= for token_info <- @token_infos do %>
+        <div class="h-12 grid grid-cols-3 items-center">
+            <%= if get_identifier(@token) != token_info.identifier do %>
+                <.button phx-click="revoke_token" phx-value-token={token_info.token}>Revoke</.button>
+            <% else %>
+                <.button disabled class="cursor-not-allowed bg-zinc-500">Current session</.button>
+            <% end %>
+
+            <%= raw(token_info.image) %>
+            <div class="grid grid-cols-2 gap-[10px]">
+                <p>Created:</p>
+                <p><%= Calendar.strftime(token_info.created_at, "%b %d %Y %I:%M %p") %></p>
+                <p>Last seen:</p>
+                <p><%= Calendar.strftime(token_info.created_at, "%b %d %Y %I:%M %p") %></p>
+            </div>
+        </div>
+        <br>
+    <% end %>
+</div>

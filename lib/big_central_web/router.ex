@@ -43,6 +43,7 @@ defmodule BigCentralWeb.Router do
 
     get "/dl_token", ApiController, :show
     get "/public_key", ApiController, :public_key
+    get "/revoked_tokens", ApiController, :revoked_tokens
   end
 
   scope "/", BigCentralWeb do
@@ -76,7 +77,7 @@ defmodule BigCentralWeb.Router do
 
     live_session :authenticated,
       layout: {BigCentralWeb.UserLive.Layouts, :app} do
-      live "/tokens", UserLive.Tokens
+      live "/settings/tokens", UserLive.Tokens
       live "/usage", FilesLive.Usage
     end
 
