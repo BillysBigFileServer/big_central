@@ -55,6 +55,7 @@ RUN mix deps.compile
 # TODO, split this into build-deps and build-src, since this is slow as hellll
 COPY lib/tasks /app/lib/tasks
 COPY wasm /app/wasm
+
 WORKDIR /app
 RUN mix build_wasm
 

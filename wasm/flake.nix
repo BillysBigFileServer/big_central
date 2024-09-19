@@ -13,7 +13,7 @@
   outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ rust-overlay.overlay ];
+        overlays = [ rust-overlay.overlays.default ];
         pkgs = import nixpkgs { inherit system overlays; };
         rust = (pkgs.rust-bin.fromRustupToolchainFile
           ./rust-toolchain.toml).override {
@@ -25,6 +25,8 @@
           cargo-binutils
           # easy cross compiling
           zig
+          cargo-zigbuild
+
           wasm-bindgen-cli
           # to compile bfsp, but we shouldn't need this
           protobuf
@@ -47,7 +49,13 @@
           buildPhase = ''
             echo 'Building wasm...'
             # We need to specify the home dir for wasm-pack to work
-            HOME=$(mktemp -d fake-homeXXXX) CC="zig cc -target wasm32-freestanding" RUSTFLAGS="-Ctarget-feature=+simd128" RUST_LOG=debug wasm-pack build --release --target web --out-dir ./pkg -m no-install --no-pack
+            export HOME=$(pwd)/$(mktemp -d fake-homeXXXX)
+            mkdir -p $HOME/.cache/cargo-zigbuild/0.19.1/
+            echo '#!/bin/sh exec "/nix/store/ywsqmw3ldi6n4fcx8bjab0nswczg5n56-cargo-zigbuild-0.19.1/bin/.cargo-zigbuild-wrapped" zig cc -- -g -target wasm32-freestanding "$@"' | tee $HOME/.cache/cargo-zigbuild/0.19.1/zigcc-wasm32-unknown-unknown-785d.sh
+            chmod +x $HOME/.cache/cargo-zigbuild/0.19.1/zigcc-wasm32-unknown-unknown-785d.sh
+            export PATH=$PATH:$HOME/.cache/cargo-zigbuild/0.19.1/
+            cargo zigbuild --offline --release --target=wasm32-unknown-unknown
+            wasm-bindgen target/wasm32-unknown-unknown/release/wasm.wasm --target=web --out-dir ./pkg
           '';
           installPhase = ''
             mkdir -p $out
