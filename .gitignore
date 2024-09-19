@@ -33,7 +33,7 @@ big_central-*.tar
 /priv/static/assets/
 /priv/static/wasm/
 
-assets/js/wasm.*
+assets/js/wasm*
 
 **/result/
 

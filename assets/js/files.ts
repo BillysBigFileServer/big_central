@@ -358,7 +358,7 @@ export async function upload_file_inner(file: File, master_enc_key: string, toke
 
     // Generate chunk metadata, upload it, etc
     const chunk_hash = f.chunk_hash(view);
-    const chunk_id = f.chunk_id(chunk_hash);
+    const chunk_id = f.chunk_id();
     const chunk_len = view.length;
     const chunk_nonce = f.chunk_nonce();
 

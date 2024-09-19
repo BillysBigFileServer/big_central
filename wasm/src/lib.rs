@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use bfsp::cli::{FileMetadata, FileType};
 use bfsp::{
-    hash_chunk as bfsp_hash_chunk, uuid::Uuid, ChunkHash, ChunkID, ChunkMetadata, EncryptionKey,
+    hash_chunk as bfsp_hash_chunk, uuid::Uuid, ChunkID, ChunkMetadata, EncryptionKey,
     EncryptionNonce, Message,
 };
 use biscuit_auth::builder::{fact, set, string};
@@ -20,9 +20,8 @@ pub fn chunk_hash(chunk: &[u8]) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn chunk_id(chunk_hash: &[u8]) -> String {
-    let chunk_hash = ChunkHash::from_bytes(chunk_hash.try_into().unwrap());
-    ChunkID::new(&chunk_hash).to_string()
+pub fn chunk_id() -> String {
+    ChunkID::new().to_string()
 }
 
 #[wasm_bindgen]
