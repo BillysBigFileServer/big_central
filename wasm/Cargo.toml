@@ -12,9 +12,7 @@ lto = "fat"
 [dependencies]
 wasm-bindgen = { version = "0.2.93" }
 bfsp = { path = "./bfsp/" }
-time = { version = "*", features = ["macros", "wasm-bindgen"] }
 console_error_panic_hook = "0.1.7"
-biscuit-auth = { version = "5", features = ["wasm"] }
 zstd = { version = "0.13", features = ["fat-lto"] }
 rsa = { version = "0.9" }
 rand = { version = "0.8"}
