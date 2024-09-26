@@ -1,9 +1,7 @@
-import { set_encryption_key } from "./files";
-import init, * as f from "./wasm";
+import * as f from "wasm/wasm";
 
 export async function prep_login(event: any) {
     event.preventDefault();
-    await init("/wasm/wasm_bg.wasm")
 
     const form: HTMLFormElement = event.target;
     const password = (document.getElementById("password") as HTMLInputElement)!.value;
@@ -25,4 +23,14 @@ export async function prep_login(event: any) {
     }
 
     form.submit();
+}
+
+async function set_encryption_key(password: string) {
+  const key = await generate_encryption_key(password);
+  localStorage.setItem("encryption_key", key);
+}
+
+async function generate_encryption_key(password: string) : Promise<string> {
+  let key = f.create_encryption_key(password);
+  return key;
 }

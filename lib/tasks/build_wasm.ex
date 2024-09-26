@@ -17,24 +17,16 @@ defmodule Mix.Tasks.BuildWasm do
         ],
         cd: "./wasm/"
       )
-
-    File.rm("assets/js/wasm.js")
-    File.rm("assets/js/wasm_bg.wasm")
-    File.rm("assets/js/wasm_bg.wasm.d.ts")
-    File.rm("assets/js/wasm.d.ts")
-
-    File.mkdir_p("assets/js/")
-
-    File.cp!("./wasm/result/pkg/wasm.js", "assets/js/wasm.js")
-    File.cp!("./wasm/result/pkg/wasm_bg.wasm", "assets/js/wasm_bg.wasm")
-    File.cp!("./wasm/result/pkg/wasm.d.ts", "assets/js/wasm.d.ts")
-    File.cp!("./wasm/result/pkg/wasm_bg.wasm.d.ts", "assets/js/wasm_bg.wasm.d.ts")
   end
 end
 
-defmodule Mix.Tasks.BuildWasmDeps do
+defmodule Mix.Tasks.CopyWasm do
   use Mix.Task
 
   def run(_) do
+    File.rm_rf("./priv/static/wasm/")
+    File.mkdir_p!("./priv/static/wasm/")
+    File.cp!("./wasm/result/pkg/wasm_bg.wasm.d.ts", "./priv/static/wasm/wasm_bg.wasm.d.ts")
+    File.cp!("./wasm/result/pkg/wasm_bg.wasm", "./priv/static/wasm/wasm_bg.wasm")
   end
 end

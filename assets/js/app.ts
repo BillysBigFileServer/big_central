@@ -17,16 +17,12 @@
 
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
-// Establish Phoenix Socket and LiveView configuration.
 import topbar from "topbar"
 
-import { show_files } from "./files";
-import { view_file } from "./file_view";
 import { liveSocket } from "./socket"
 import { validate_email, validate_password } from "./auth";
 import { prep_signup } from "./signup";
 import { prep_login } from "./login";
-import { get_token } from "./efs_wc";
 import { set_pub_key_input } from "./auth_page";
 
 
@@ -41,13 +37,7 @@ document.getElementById("password")?.addEventListener("input", validate_password
 document.getElementById("signup_form")?.addEventListener("submit", prep_signup);
 document.getElementById("login_form")?.addEventListener("submit", prep_login);
 
-if (window.location.pathname == "/files") {
-    get_token(null, null).then((token) => {
-        show_files(token);
-    });
-} else if (window.location.pathname == "/files/view_file") {
-    view_file();
-} else if (window.location.pathname == "/auth") {
+if (window.location.pathname == "/auth") {
     set_pub_key_input();
 }
 // connect if there are any LiveViews on the page

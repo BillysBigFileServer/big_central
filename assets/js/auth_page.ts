@@ -1,4 +1,4 @@
-import init, * as f from "./wasm";
+import * as f from "wasm/wasm";
 
 export async function set_pub_key_input() {
     const url = new URL(document.URL);
@@ -7,7 +7,6 @@ export async function set_pub_key_input() {
         public_key_b64 = localStorage.getItem("app_login_pub_key")!;
     }
 
-    await init("/wasm/wasm_bg.wasm");
     const master_key_to_enc = localStorage.getItem("encryption_key")!;
     const master_key_bin_to_enc = f.base64_decode(master_key_to_enc);
 

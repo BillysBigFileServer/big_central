@@ -234,16 +234,29 @@ defmodule BigCentralWeb.UserSessionController do
       conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
     end
 
-    case Token.verify(token, %{email: get_session(conn, :email)}) do
+    case verify_token(token) do
       {:ok, _} ->
         conn
 
-      {:error, _} ->
+      {:error, err} ->
         conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
     end
   end
 
   def redirect_if_user_is_authenticated(conn, _opts) do
     conn
+  end
+
+  def verify_token(token) do
+    private_key = System.get_env("TOKEN_PRIVATE_KEY")
+    public_key = Biscuit.public_key_from_private(private_key)
+
+    Biscuit.authorize(token, public_key, """
+        check if user($user);
+
+        allow if true;
+        deny if false;
+    """)
+    |> IO.inspect()
   end
 end

@@ -59,6 +59,9 @@ COPY wasm /app/wasm
 WORKDIR /app
 RUN mix build_wasm
 
+# we need the latest npm version to install from a dir without a package.json
+RUN npm install -g npm@latest
+
 COPY assets /app/assets
 RUN cd /app/assets && npm install
 WORKDIR /app

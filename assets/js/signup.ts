@@ -1,8 +1,7 @@
-import init, * as f from "./wasm";
+import * as f from "wasm/wasm";
 
 export async function prep_signup(event: any) {
     event.preventDefault();
-    await init("/wasm/wasm_bg.wasm");
 
     const form: HTMLFormElement = event.target;
     const password = (document.getElementById("password") as HTMLInputElement)!.value;

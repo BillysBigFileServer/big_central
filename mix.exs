@@ -78,7 +78,13 @@ defmodule BigCentral.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      setup: [
+        "deps.get",
+        "ecto.setup",
+        "cmd --cd assets npm install",
+        "assets.setup",
+        "assets.build"
+      ],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
@@ -86,8 +92,10 @@ defmodule BigCentral.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind big_central", "esbuild big_central"],
       "assets.deploy": [
+        "build_wasm",
         "tailwind big_central --minify",
-        "esbuild big_central --minify --tree-shaking=true --external:./wasm_bg.wasm",
+        "cmd --cd assets node build.js --deploy",
+        # "copy_wasm",
         "phx.digest"
       ]
     ]

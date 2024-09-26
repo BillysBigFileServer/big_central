@@ -8,7 +8,7 @@ defmodule BigCentralWeb.HomeLive.Index do
     token = session["token"]
     email = session["email"]
 
-    logged_in = token != nil && Token.verify(token, %{email: email}) == {:ok, token}
+    logged_in = token != nil
     {:ok, socket |> assign(logged_in: logged_in)}
   end
 

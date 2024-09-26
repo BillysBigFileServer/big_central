@@ -67,15 +67,6 @@ defmodule BigCentral.Token do
     })
   end
 
-  def verify(nil, %{email: nil}) do
-    {:ok, nil}
-  end
-
-  def verify(token, %{email: email}) do
-    # FIXME
-    {:ok, token}
-  end
-
   @doc false
   def changeset(tokens, attrs) do
     tokens
