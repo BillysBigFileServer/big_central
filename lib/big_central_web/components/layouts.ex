@@ -137,6 +137,14 @@ defmodule BigCentralWeb.Layouts do
       </li>
       <li>
         <.link
+          href="/settings"
+          class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+        >
+          Settings
+        </.link>
+      </li>
+      <li>
+        <.link
           href="/users/logout"
           class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
         >

@@ -25,7 +25,7 @@ config :big_central, BigCentralWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "mG7ibFtwNkmO0cWGWF1Y1AyG/vJuSuFM6Y0Jd5WoYPbByOpP1ezyo4rO4pBIhc8e",
   watchers: [
-    node: ["build.js", "--watch", cd: Path.expand("../assets", __DIR__)],
+    npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)],
     tailwind: {Tailwind, :install_and_run, [:big_central, ~w(--watch)]},
     npm: ["--prefix", "assets", "run", "typecheck", "--", "--watch"]
   ]

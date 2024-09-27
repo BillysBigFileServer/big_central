@@ -55,7 +55,7 @@
             chmod +x $HOME/.cache/cargo-zigbuild/0.19.1/zigcc-wasm32-unknown-unknown-785d.sh
             export PATH=$PATH:$HOME/.cache/cargo-zigbuild/0.19.1/
             cargo zigbuild --offline --release --target=wasm32-unknown-unknown
-            wasm-bindgen target/wasm32-unknown-unknown/release/wasm.wasm --target=bundler --out-dir ./pkg
+            wasm-pack build --release --target bundler --out-dir ./pkg -m no-install
           '';
           installPhase = ''
             mkdir -p $out

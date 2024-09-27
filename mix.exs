@@ -94,7 +94,7 @@ defmodule BigCentral.MixProject do
       "assets.deploy": [
         "build_wasm",
         "tailwind big_central --minify",
-        "cmd --cd assets node build.js --deploy",
+        "cmd --cd assets node run deploy",
         # "copy_wasm",
         "phx.digest"
       ]

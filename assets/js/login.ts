@@ -1,4 +1,4 @@
-import * as f from "wasm/wasm";
+import { create_encryption_key, hash_password } from "wasm/";
 
 export async function prep_login(event: any) {
     event.preventDefault();
@@ -7,7 +7,7 @@ export async function prep_login(event: any) {
     const password = (document.getElementById("password") as HTMLInputElement)!.value;
     await set_encryption_key(password);
 
-    const hashed_password = f.hash_password(password);
+    const hashed_password = hash_password(password);
 
     let input: HTMLInputElement = document.createElement("input");
     input.hidden = true;
@@ -31,6 +31,6 @@ async function set_encryption_key(password: string) {
 }
 
 async function generate_encryption_key(password: string) : Promise<string> {
-  let key = f.create_encryption_key(password);
+  let key = create_encryption_key(password);
   return key;
 }

@@ -128,9 +128,24 @@ defmodule BigCentralWeb.UserSessionController do
       {:ok, conn |> put_flash(:error, "Failed Cloudflare Turnstile")}
     end
 
+    find_header = fn header_to_find ->
+      conn.req_headers
+      |> Enum.find(nil, fn {header_name, _header_value} -> header_to_find == header_name end)
+    end
+
+    x_real_ip = find_header.("fly-client-ip")
+
+    ip =
+      case x_real_ip do
+        nil -> conn.remote_ip |> :inet.ntoa() |> to_string()
+        {_header_name, x_real_ip} -> x_real_ip
+      end
+
+    {_header_name, user_agent} = find_header.("user-agent") || "none"
+
     case Users.login_user(%{email: email, password: password}) do
       {:ok, _} ->
-        {:ok, t} = Token.generate_ultimate(email)
+        {:ok, t} = Token.generate_ultimate(email, ip, {:browser, user_agent})
 
         redirect_to =
           case dl_token == "" do

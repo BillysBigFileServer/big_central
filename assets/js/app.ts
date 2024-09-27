@@ -25,6 +25,8 @@ import { prep_signup } from "./signup";
 import { prep_login } from "./login";
 import { set_pub_key_input } from "./auth_page";
 
+import '../css/app.css';
+
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
