@@ -2,6 +2,7 @@ defmodule BigCentralWeb.UserSessionController do
   use BigCentralWeb, :controller
 
   import Swoosh.Email
+  import Plug.Conn
 
   alias Google.Protobuf
   alias Bfsp.Internal.ActionInfo
@@ -38,7 +39,7 @@ defmodule BigCentralWeb.UserSessionController do
 
     {:ok, resp} = resp.body |> Jason.decode()
 
-    if !resp["success"] do
+    if !(resp["success"] || false) do
       {:ok, conn |> put_flash(:error, "Failed Cloudflare Turnstile")}
     end
 
@@ -59,12 +60,16 @@ defmodule BigCentralWeb.UserSessionController do
         |> Base.url_decode64()
 
       nonce = :crypto.strong_rand_bytes(24)
+      # FIXME don't use internal_key for encryption
       {:ok, enc_password} = Biscuit.encrypt(password, internal_key, nonce)
+      {:ok, encoded_marketing} = conn |> get_session(:marketing) |> Jason.encode()
 
+      # TODO we can just do normal signing w RSA or something here
       facts = [
         {"email", "string", [email_addr]},
         {"password", "string", [enc_password |> :binary.list_to_bin() |> Base.encode64()]},
-        {"nonce", "string", [nonce |> Base.encode64()]}
+        {"nonce", "string", [nonce |> Base.encode64()]},
+        {"marketing", "string", [encoded_marketing]}
       ]
 
       options = %{"seal" => "true"}
@@ -191,6 +196,8 @@ defmodule BigCentralWeb.UserSessionController do
         """
         check if email($email);
         check if password($password);
+        check if nonce($nonce);
+        check if marketing($marketing);
 
         allow if true;
         deny if false;
@@ -199,6 +206,10 @@ defmodule BigCentralWeb.UserSessionController do
 
     {:ok, email} = Biscuit.get_fact(token, public_key, "email")
     {:ok, nonce} = Biscuit.get_fact(token, public_key, "nonce")
+
+    {:ok, marketing} = Biscuit.get_fact(token, public_key, "marketing")
+    {:ok, marketing} = marketing |> Jason.decode(keys: :atoms)
+
     {:ok, enc_password} = Biscuit.get_fact(token, public_key, "password")
     {:ok, enc_password} = enc_password |> Base.decode64()
 
@@ -210,7 +221,7 @@ defmodule BigCentralWeb.UserSessionController do
     {:ok, password} = Biscuit.decrypt(enc_password, key, nonce)
     password = password |> to_string()
 
-    {:ok, user} = Users.create_user(%{email: email, password: password})
+    {:ok, user} = Users.create_user(%{email: email, password: password, marketing: marketing})
 
     {:ok, time} = DateTime.now("Etc/UTC")
     unix_time = time |> DateTime.add(30, :day) |> DateTime.to_unix(:nanosecond)
@@ -242,19 +253,52 @@ defmodule BigCentralWeb.UserSessionController do
     conn |> redirect(to: ~p"/")
   end
 
+  # stores utm info
+  def marketing(conn, _opts) do
+    conn = conn |> fetch_query_params(conn) |> fetch_session()
+    params = conn.params
+    existing_marketing = conn |> get_session(:marketing)
+
+    utm_source = which_not_nil(params["utm_source"], existing_marketing[:utm_source])
+    utm_medium = which_not_nil(params["utm_medium"], existing_marketing[:utm_medium])
+    utm_campaign = which_not_nil(params["utm_campaign"], existing_marketing[:utm_campaign])
+    utm_term = which_not_nil(params["utm_term"], existing_marketing[:utm_term])
+    utm_content = which_not_nil(params["utm_content"], existing_marketing[:utm_content])
+
+    landing_page = which_not_nil(existing_marketing[:landing_page], current_path(conn))
+
+    marketing =
+      %{
+        utm_source: utm_source,
+        utm_medium: utm_medium,
+        utm_campaign: utm_campaign,
+        utm_term: utm_term,
+        utm_content: utm_content,
+        landing_page: landing_page
+      }
+
+    conn |> put_session(:marketing, marketing)
+  end
+
+  def which_not_nil(val1, val2) do
+    val1 || val2
+  end
+
   def require_authenticated_user(conn, _opts) do
     token = get_session(conn, :token)
 
-    if token == nil do
-      conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
-    end
-
-    case verify_token(token) do
-      {:ok, _} ->
-        conn
-
-      {:error, err} ->
+    case token do
+      nil ->
         conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
+
+      token ->
+        case verify_token(token) do
+          {:ok, _} ->
+            conn
+
+          {:error, err} ->
+            conn |> put_flash(:error, "You must log in to access this page.") |> delete(%{})
+        end
     end
   end
 
@@ -272,6 +316,5 @@ defmodule BigCentralWeb.UserSessionController do
         allow if true;
         deny if false;
     """)
-    |> IO.inspect()
   end
 end

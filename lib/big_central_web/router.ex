@@ -47,21 +47,17 @@ defmodule BigCentralWeb.Router do
   end
 
   scope "/", BigCentralWeb do
-    pipe_through [:browser]
-
-    live_session :home,
-      layout: {BigCentralWeb.Layouts, :home} do
-      live "/", HomeLive.Index
-    end
-  end
-
-  scope "/", BigCentralWeb do
-    pipe_through [:browser, :redirect_if_user_is_authenticated]
+    pipe_through [:browser, :marketing]
 
     live_session :unauthenticated,
       layout: {BigCentralWeb.UserLive.Layouts, :app} do
       live "/signup", UserLive.Signup
       live "/login", UserLive.Login
+    end
+
+    live_session :home,
+      layout: {BigCentralWeb.Layouts, :home} do
+      live "/", HomeLive.Index
     end
 
     live "/auth", UserLive.Auth
