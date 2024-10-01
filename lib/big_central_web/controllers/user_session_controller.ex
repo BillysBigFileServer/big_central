@@ -86,7 +86,7 @@ defmodule BigCentralWeb.UserSessionController do
       email =
         new()
         |> to({email_addr, email_addr})
-        |> from({"BBFS.io Support", "support@bbfs.io"})
+        |> from({"No-Reply BBFS.io", "noreply@bbfs.io"})
         |> subject("Signup Code")
         |> html_body("""
         <p>Signup link:</p>
