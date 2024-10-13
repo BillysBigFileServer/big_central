@@ -13,7 +13,6 @@ lto = "fat"
 wasm-bindgen = { version = "0.2.93" }
 bfsp = { path = "./bfsp/" }
 console_error_panic_hook = "0.1.7"
-zstd = { version = "0.13", features = ["fat-lto"] }
 rsa = { version = "0.9" }
 rand = { version = "0.8"}
 getrandom = { version = "0.2", features = ["js"] }

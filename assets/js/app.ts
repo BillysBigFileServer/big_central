@@ -26,6 +26,7 @@ import { prep_login } from "./login";
 import { set_pub_key_input } from "./auth_page";
 
 import '../css/app.css';
+import { init_file_view } from "./view_file";
 
 
 // Show progress bar on live navigation and form submits
@@ -42,6 +43,15 @@ document.getElementById("login_form")?.addEventListener("submit", prep_login);
 if (window.location.pathname == "/auth") {
     set_pub_key_input();
 }
+
+switch (window.location.pathname) {
+    case "/auth":
+        set_pub_key_input();
+    case "/files/view_file":
+        init_file_view();
+}
+
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

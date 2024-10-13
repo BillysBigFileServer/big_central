@@ -1,1 +1,25 @@
-<h1>The web interface is currently under development. Please contact Billy or start using the <a href="https://github.com/BillysBigFileServer/bbfs-cli" class="text-sky-400">CLI</a></h1>
+<p id="loading">Loading...</p>
+<h1 class="text-red-500 text-2xl hidden" id="error">Error: </h1>
+<div class="hidden bg-white shadow-md rounded-lg p-6 w-full max-w-4xl min-h-screen flex flex-col" id="file_info">
+    <div id="progress_list_div" class="fixed top-16 right-0 bg-white p-4 border border-gray-300 rounded-lg shadow-lg hidden">
+        <ul id="progress-list"></ul>
+    </div>
+    <div class="mb-4">
+        <h1 class="text-2xl font-semibold text-gray-800 mb-2" id="title"></h1>
+        <p class="text-sm text-gray-500" id="uploaded_on"></p>
+        <p class="text-sm text-gray-500" id="size">Size: 2.4 MB</p>
+    </div>
+
+    <div class="flex-grow flex justify-center items-center mb-6">
+<svg xmlns="http://www.w3.org/2000/svg" height="256px" viewBox="0 -960 960 960" width="256px" fill="#5f6368" id="file_icon"></svg>
+    </div>
+
+    <div class="flex justify-between mt-auto pt-4 border-t border-gray-200">
+        <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg" id="download">
+            Download
+        </button>
+        <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg" id="share">
+            Share
+        </button>
+    </div>
+</div>
