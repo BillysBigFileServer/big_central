@@ -6,7 +6,6 @@ defmodule BigCentralWeb.HomeLive.Index do
   @impl true
   def mount(_params, session, socket) do
     token = session["token"]
-    email = session["email"]
 
     logged_in = token != nil
     {:ok, socket |> assign(logged_in: logged_in)}
@@ -27,13 +26,26 @@ defmodule BigCentralWeb.HomeLive.Index do
 
   def call_to_action(assigns) do
     ~H'''
-    <div class="text-center">
-      <a
-        href="/signup"
-        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-full inline-block transition duration-300"
-      >
-        Get Started
-      </a>
+    <div class="grid grid-cols-3 gap-1">
+      <div class="text-center">
+        <a
+          href="/signup"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-full inline-block transition duration-300"
+        >
+          Get Started
+        </a>
+      </div>
+      <p>
+        or
+      </p>
+      <div class="text-center">
+        <a
+          href="/login"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-full inline-block transition duration-300"
+        >
+          Login
+        </a>
+      </div>
     </div>
     '''
   end

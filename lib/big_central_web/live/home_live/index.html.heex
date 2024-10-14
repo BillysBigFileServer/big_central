@@ -1,21 +1,53 @@
-<div class="max-w-4xl mx-auto px-4 py-8">
-  <h1 class="text-4xl font-bold mb-6 text-center">Billy's Big File Server</h1>
-  <p class="text-lg text-gray-700 mb-6 leading-relaxed">
-    Secure your files with confidence! Billy's Big File Server offers you a safe and private space to store your important documents, precious memories, and sensitive data. With end-to-end encryption and open-source transparency, your files are protected from prying eyes.
-  </p>
-  <div class="grid grid-cols-1 sm:grid-cols-1 gap-8">
-      <div>
-        <h2 class="text-xl font-semibold mb-2">End-to-End Encryption</h2>
-        <p class="text-gray-700">Your files are encrypted on your device before they even leave it, ensuring that only you and those you authorize can access them.</p>
-      </div>
-      <div>
-        <h2 class="text-xl font-semibold mb-2">Open Source</h2>
-        <p class="text-gray-700">We believe in transparency. Our code is open for scrutiny, so you can trust that there are no backdoors or malicious changes. You can view all of <a href="https://github.com/BillysBigFileServer" class="text-sky-400">our code</a> at any time.</p>
-      </div>
-      <div>
-        <h2 class="text-xl font-semibold mb-2">User-Friendly Interface</h2>
-        <p class="text-gray-700">Our intuitive interface makes it easy for anyone to upload, organize, and share files hassle-free.</p>
-      </div>
+<div class="max-w-5xl mx-auto px-6 py-16">
+  <!-- Header Section -->
+  <div class="text-center mb-16">
+    <h1 class="text-6xl font-bold text-gray-900 mb-4">Billy's Big File Server</h1>
+    <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+      Your personal, private, and secure file storage solution. Whether you need to protect sensitive documents, store cherished memories, or keep confidential work files safe, we've got you covered with the latest encryption technology and user-friendly design.
+    </p>
   </div>
-  <.call_to_action logged_in={@logged_in}/>
+
+  <!-- Features Section -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <!-- Feature 1: Encryption -->
+    <div class="p-6 bg-white rounded-lg shadow-md text-center">
+      <div class="mb-4">
+        <svg class="mx-auto h-12 w-12" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#7CA7D8"><path d="M420-360h120l-23-129q20-10 31.5-29t11.5-42q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 23 11.5 42t31.5 29l-23 129Zm60 280q-139-35-229.5-159.5T160-516v-244l320-120 320 120v244q0 152-90.5 276.5T480-80Zm0-84q104-33 172-132t68-220v-189l-240-90-240 90v189q0 121 68 220t172 132Zm0-316Z"/></svg>
+      </div>
+      <h3 class="text-2xl font-semibold mb-2">End-to-End Encryption</h3>
+      <p class="text-gray-600">
+        Your files are encrypted on your device before they even leave it. Only you and those you authorize can access them—no exceptions.
+      </p>
+    </div>
+
+    <div class="p-6 bg-white rounded-lg shadow-md text-center">
+      <div class="mb-4">
+        <svg class="mx-auto h-12 w-12" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#7CA7D8"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg>
+      </div>
+      <h3 class="text-2xl font-semibold mb-2">Open Source</h3>
+      <p class="text-gray-600">
+        We value transparency. Our platform is completely open source, and you can inspect or contribute to <a href="https://github.com/BillysBigFileServer" class="text-sky-500 hover:underline">our code</a> anytime.
+      </p>
+    </div>
+
+    <div class="p-6 bg-white rounded-lg shadow-md text-center">
+      <div class="mb-4">
+        <svg class="mx-auto h-12 w-12" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#7CA7D8"><path d="m480-120-58-52q-101-91-167-157T150-447.5Q111-500 95.5-544T80-634q0-94 63-157t157-63q52 0 99 22t81 62q34-40 81-62t99-22q94 0 157 63t63 157q0 46-15.5 90T810-447.5Q771-395 705-329T538-172l-58 52Zm0-108q96-86 158-147.5t98-107q36-45.5 50-81t14-70.5q0-60-40-100t-100-40q-47 0-87 26.5T518-680h-76q-15-41-55-67.5T300-774q-60 0-100 40t-40 100q0 35 14 70.5t50 81q36 45.5 98 107T480-228Zm0-273Z"/></svg>
+      </div>
+      <h3 class="text-2xl font-semibold mb-2">User-Friendly Interface</h3>
+      <p class="text-gray-600">
+Get the best of both worlds - top-notch privacy and ease-of-use - with our simple, secure, and space-saving encrypted file server designed just for you!
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-16 text-center">
+    <h2 class="text-4xl font-bold text-gray-900 mb-4">Ready to Secure Your Files?</h2>
+    <.call_to_action logged_in={@logged_in} class="inline-block px-8 py-4 bg-sky-500 text-white rounded-lg shadow hover:bg-sky-600 transition duration-300"/>
+  </div>
+
+  <footer class="mt-16 text-center text-gray-500">
+    <p>© 2024 Billy's Big Company</p>
+    <p><a href="/about" class="text-sky-500 hover:underline">About</a> | <a href="/privacy" class="text-sky-500 hover:underline">Privacy Policy</a> | <a href="/terms" class="text-sky-500 hover:underline">Terms of Service</a></p>
+  </footer>
 </div>
